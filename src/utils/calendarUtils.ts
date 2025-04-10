@@ -35,28 +35,34 @@ export const generateICS = (data: CSVRow[], calendarName: string): string => {
     const prepUid = `PREP-${row.activityId}-${Date.now()}@lovable.app`;
     const goUid = `GO-${row.activityId}-${Date.now() + 1}@lovable.app`;
     
-    // Create PREP event
+    // Create PREP event with proper line endings and escaping
     icsContent += [
       'BEGIN:VEVENT',
       `UID:${prepUid}`,
-      `SUMMARY:[PREP] ${row.activityName}`,
-      `DESCRIPTION:${row.description}\\nStrategy: ${row.strategy}\\nActivity ID: ${row.activityId}\\nType: PREPARATION`,
+      `SUMMARY:[PREP] ${escapeIcsText(row.activityName)}`,
+      `DESCRIPTION:${escapeIcsText(row.description)}\\nStrategy: ${escapeIcsText(row.strategy)}\\nActivity ID: ${escapeIcsText(row.activityId)}\\nType: PREPARATION`,
       `DTSTART;VALUE=DATE:${prepDateFormatted}`,
       `DTEND;VALUE=DATE:${prepDateFormatted}`,
+      'STATUS:CONFIRMED',
+      'TRANSP:OPAQUE',
       'SEQUENCE:0',
+      `CREATED:${formatDateForICS(new Date())}`,
       `DTSTAMP:${formatDateForICS(new Date())}`,
       'END:VEVENT'
     ].join('\r\n') + '\r\n';
     
-    // Create GO event
+    // Create GO event with proper line endings and escaping
     icsContent += [
       'BEGIN:VEVENT',
       `UID:${goUid}`,
-      `SUMMARY:[GO] ${row.activityName}`,
-      `DESCRIPTION:${row.description}\\nStrategy: ${row.strategy}\\nActivity ID: ${row.activityId}\\nType: EXECUTION`,
+      `SUMMARY:[GO] ${escapeIcsText(row.activityName)}`,
+      `DESCRIPTION:${escapeIcsText(row.description)}\\nStrategy: ${escapeIcsText(row.strategy)}\\nActivity ID: ${escapeIcsText(row.activityId)}\\nType: EXECUTION`,
       `DTSTART;VALUE=DATE:${goDateFormatted}`,
       `DTEND;VALUE=DATE:${goDateFormatted}`,
+      'STATUS:CONFIRMED',
+      'TRANSP:OPAQUE',
       'SEQUENCE:0',
+      `CREATED:${formatDateForICS(new Date())}`,
       `DTSTAMP:${formatDateForICS(new Date())}`,
       'END:VEVENT'
     ].join('\r\n') + '\r\n';
@@ -66,6 +72,16 @@ export const generateICS = (data: CSVRow[], calendarName: string): string => {
   icsContent += 'END:VCALENDAR';
   
   return icsContent;
+};
+
+// Function to properly escape text for ICS format
+const escapeIcsText = (text: string): string => {
+  if (!text) return '';
+  return text
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\n/g, '\\n');
 };
 
 // Format a Date object to ICS format (YYYYMMDDTHHmmssZ)
