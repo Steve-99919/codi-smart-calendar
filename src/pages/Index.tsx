@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
   const [redirectTo, setRedirectTo] = useState<string | null>(null);
@@ -10,12 +10,6 @@ const Index = () => {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        // If Supabase is not configured, just redirect to login
-        if (!isSupabaseConfigured()) {
-          setRedirectTo("/login");
-          return;
-        }
-
         const { data } = await supabase.auth.getSession();
         setRedirectTo(data.session ? "/dashboard" : "/login");
       } catch (error) {
