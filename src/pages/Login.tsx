@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from "sonner";
 import AuthLayout from '@/components/AuthLayout';
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -21,6 +21,12 @@ const Login = () => {
     
     if (!email || !password) {
       toast.error('Please enter both email and password');
+      return;
+    }
+    
+    // Check if Supabase is configured
+    if (!isSupabaseConfigured()) {
+      toast.error('Supabase is not configured. Please connect your project to Supabase first.');
       return;
     }
     
@@ -50,6 +56,16 @@ const Login = () => {
       title="Welcome to CODi" 
       subtitle="Your Smart Marketing Calendar Assistant"
     >
+      {!isSupabaseConfigured() && (
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-md text-amber-800">
+          <h3 className="font-bold mb-1">Supabase Not Connected</h3>
+          <p className="text-sm">
+            To enable authentication, please connect your Lovable project to Supabase using the green Supabase 
+            button in the top right corner of the Lovable interface.
+          </p>
+        </div>
+      )}
+      
       <form onSubmit={handleLogin}>
         <div className="space-y-4">
           <div className="space-y-2">
