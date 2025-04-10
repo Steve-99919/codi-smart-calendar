@@ -37,10 +37,10 @@ const australianHolidays: HolidayMap = {
   "11/03/2024": { name: "Labour Day", states: ["VIC"] },
   "04/03/2024": { name: "Labour Day", states: ["WA"] },
   "06/05/2024": { name: "May Day", states: ["NT"] },
-  "06/05/2024": { name: "Labour Day", states: ["QLD"] },
+  "06/05/2024-QLD": { name: "Labour Day", states: ["QLD"] }, // Added suffix to avoid duplicate key
   "03/06/2024": { name: "Western Australia Day", states: ["WA"] },
   "30/09/2024": { name: "King's Birthday", states: ["WA"] },
-  "07/10/2024": { name: "King's Birthday", states: ["QLD"] },
+  "07/10/2024-QLD": { name: "King's Birthday", states: ["QLD"] }, // Added suffix to avoid duplicate key
   "05/11/2024": { name: "Melbourne Cup", states: ["VIC"] },
   
   // 2025 National Holidays
@@ -53,7 +53,7 @@ const australianHolidays: HolidayMap = {
   "21/04/2025": { name: "Easter Monday", states: ["ALL"] },
   "25/04/2025": { name: "Anzac Day", states: ["ALL"] },
   "09/06/2025": { name: "King's Birthday", states: ["ACT", "NSW", "NT", "SA", "TAS", "VIC"] },
-  "06/10/2025": { name: "Labour Day", states: ["ACT", "NSW", "SA"] },
+  "06/10/2025-ACT": { name: "Labour Day", states: ["ACT", "NSW", "SA"] }, // Added suffix to avoid duplicate key
   "25/12/2025": { name: "Christmas Day", states: ["ALL"] },
   "26/12/2025": { name: "Boxing Day", states: ["ALL"] },
   
@@ -61,10 +61,10 @@ const australianHolidays: HolidayMap = {
   "10/03/2025": { name: "Labour Day", states: ["VIC"] },
   "03/03/2025": { name: "Labour Day", states: ["WA"] },
   "05/05/2025": { name: "May Day", states: ["NT"] },
-  "05/05/2025": { name: "Labour Day", states: ["QLD"] },
+  "05/05/2025-QLD": { name: "Labour Day", states: ["QLD"] }, // Added suffix to avoid duplicate key
   "02/06/2025": { name: "Western Australia Day", states: ["WA"] },
   "29/09/2025": { name: "King's Birthday", states: ["WA"] },
-  "06/10/2025": { name: "King's Birthday", states: ["QLD"] },
+  "06/10/2025-QLD": { name: "King's Birthday", states: ["QLD"] }, // Added suffix to avoid duplicate key
   "04/11/2025": { name: "Melbourne Cup", states: ["VIC"] }
 };
 
@@ -73,12 +73,25 @@ export const isPublicHoliday = (dateStr: string, state: string = "ALL"): boolean
     return false;
   }
   
+  // Check for normal date entry
   const holiday = australianHolidays[dateStr];
+  if (holiday && (holiday.states.includes("ALL") || holiday.states.includes(state))) {
+    return true;
+  }
   
-  if (!holiday) return false;
+  // Check for suffixed entries (for dates that would be duplicates)
+  const dateWithSuffixes = Object.keys(australianHolidays).filter(key => 
+    key.startsWith(dateStr)
+  );
   
-  // Check if it's a national holiday or specific to the given state
-  return holiday.states.includes("ALL") || holiday.states.includes(state);
+  for (const key of dateWithSuffixes) {
+    const holiday = australianHolidays[key];
+    if (holiday && (holiday.states.includes("ALL") || holiday.states.includes(state))) {
+      return true;
+    }
+  }
+  
+  return false;
 };
 
 export const getHolidayInfo = (dateStr: string): { isHoliday: boolean; name?: string; states?: string[] } => {
@@ -86,15 +99,33 @@ export const getHolidayInfo = (dateStr: string): { isHoliday: boolean; name?: st
     return { isHoliday: false };
   }
   
+  // Check for normal date entry
   const holiday = australianHolidays[dateStr];
+  if (holiday) {
+    return {
+      isHoliday: true,
+      name: holiday.name,
+      states: holiday.states
+    };
+  }
   
-  if (!holiday) return { isHoliday: false };
+  // Check for suffixed entries (for dates that would be duplicates)
+  const dateWithSuffixes = Object.keys(australianHolidays).filter(key => 
+    key.startsWith(dateStr)
+  );
   
-  return {
-    isHoliday: true,
-    name: holiday.name,
-    states: holiday.states
-  };
+  for (const key of dateWithSuffixes) {
+    const holiday = australianHolidays[key];
+    if (holiday) {
+      return {
+        isHoliday: true,
+        name: holiday.name,
+        states: holiday.states
+      };
+    }
+  }
+  
+  return { isHoliday: false };
 };
 
 export const isValidDateFormat = (dateStr: string): boolean => {

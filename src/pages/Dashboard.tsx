@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import Logo from '@/components/Logo';
 import CSVUpload from '@/components/CSVUpload';
 import CSVTable from '@/components/CSVTable';
+import GoogleCalendarImport from '@/components/GoogleCalendarImport';
 import { parseCSV } from '@/utils/csvUtils';
 import { CSVRow } from '@/types/csv';
 
@@ -103,15 +104,18 @@ const Dashboard = () => {
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-semibold">Activity Data</h2>
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setCsvData([]);
-                    setHasUploadedFile(false);
-                  }}
-                >
-                  Upload another file
-                </Button>
+                <div className="flex gap-2">
+                  <GoogleCalendarImport data={csvData} />
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setCsvData([]);
+                      setHasUploadedFile(false);
+                    }}
+                  >
+                    Upload another file
+                  </Button>
+                </div>
               </div>
               
               {csvData.length > 0 ? (
