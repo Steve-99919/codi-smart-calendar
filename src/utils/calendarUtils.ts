@@ -5,7 +5,7 @@
 
 import { CSVRow } from "../types/csv";
 
-// Convert CSV data to iCalendar (ICS) format
+// Convert CSV data to iCalendar (ICS) format with separate events for prep and go dates
 export const generateICS = (data: CSVRow[], calendarName: string): string => {
   // ICS file header
   let icsContent = [
@@ -17,7 +17,7 @@ export const generateICS = (data: CSVRow[], calendarName: string): string => {
     'METHOD:PUBLISH'
   ].join('\r\n') + '\r\n';
   
-  // Add each activity as an event
+  // Add each activity as two separate events (PREP and GO)
   data.forEach(row => {
     // Parse the dates (convert from DD/MM/YYYY to YYYYMMDD format for ICS)
     const prepDateParts = row.prepDate.split('/');
@@ -31,16 +31,30 @@ export const generateICS = (data: CSVRow[], calendarName: string): string => {
     const prepDateFormatted = `${prepDateParts[2]}${prepDateParts[1]}${prepDateParts[0]}`;
     const goDateFormatted = `${goDayParts[2]}${goDayParts[1]}${goDayParts[0]}`;
     
-    // Create unique identifier for the event
-    const uid = `${row.activityId}-${Date.now()}@lovable.app`;
+    // Create unique identifiers for each event
+    const prepUid = `PREP-${row.activityId}-${Date.now()}@lovable.app`;
+    const goUid = `GO-${row.activityId}-${Date.now() + 1}@lovable.app`;
     
-    // Create event
+    // Create PREP event
     icsContent += [
       'BEGIN:VEVENT',
-      `UID:${uid}`,
-      `SUMMARY:${row.activityName}`,
-      `DESCRIPTION:${row.description}\\nStrategy: ${row.strategy}\\nActivity ID: ${row.activityId}`,
+      `UID:${prepUid}`,
+      `SUMMARY:[PREP] ${row.activityName}`,
+      `DESCRIPTION:${row.description}\\nStrategy: ${row.strategy}\\nActivity ID: ${row.activityId}\\nType: PREPARATION`,
       `DTSTART;VALUE=DATE:${prepDateFormatted}`,
+      `DTEND;VALUE=DATE:${prepDateFormatted}`,
+      'SEQUENCE:0',
+      `DTSTAMP:${formatDateForICS(new Date())}`,
+      'END:VEVENT'
+    ].join('\r\n') + '\r\n';
+    
+    // Create GO event
+    icsContent += [
+      'BEGIN:VEVENT',
+      `UID:${goUid}`,
+      `SUMMARY:[GO] ${row.activityName}`,
+      `DESCRIPTION:${row.description}\\nStrategy: ${row.strategy}\\nActivity ID: ${row.activityId}\\nType: EXECUTION`,
+      `DTSTART;VALUE=DATE:${goDateFormatted}`,
       `DTEND;VALUE=DATE:${goDateFormatted}`,
       'SEQUENCE:0',
       `DTSTAMP:${formatDateForICS(new Date())}`,

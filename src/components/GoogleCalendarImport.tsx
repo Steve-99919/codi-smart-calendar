@@ -37,6 +37,8 @@ const GoogleCalendarImport = ({ data, disabled = false }: GoogleCalendarImportPr
     }
   };
   
+  const totalEvents = data.length * 2; // Each activity creates 2 events
+  
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -53,8 +55,8 @@ const GoogleCalendarImport = ({ data, disabled = false }: GoogleCalendarImportPr
         <div className="space-y-4">
           <h3 className="font-medium text-sm">Import to Google Calendar</h3>
           <p className="text-xs text-muted-foreground">
-            Generate an ICS file to import into Google Calendar. After downloading, 
-            go to Google Calendar and import the file.
+            Generate an ICS file to import into Google Calendar. Each activity will create 
+            separate events for PREP and GO dates ({totalEvents} events total).
           </p>
           
           <div className="space-y-2">
