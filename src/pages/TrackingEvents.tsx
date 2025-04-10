@@ -1,12 +1,12 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { format, isBefore, parseISO } from 'date-fns';
+import { format, isBefore } from 'date-fns';
 import { Calendar, Check, Clock, FileText, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from "sonner";
@@ -48,10 +48,15 @@ const TrackingEvents = () => {
 
   const loadActivities = async () => {
     try {
+      // Get the current user's ID
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
       // Fetch activities
       const { data: activitiesData, error: activitiesError } = await supabase
         .from('activities')
         .select('*')
+        .eq('user_id', session.user.id)
         .order('prep_date', { ascending: true });
       
       if (activitiesError) throw activitiesError;

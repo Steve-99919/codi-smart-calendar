@@ -148,10 +148,24 @@ const Dashboard = () => {
         };
       });
       
+      // Get the current user's ID
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('You must be logged in to save activities');
+        setSavingToDatabase(false);
+        return;
+      }
+      
+      // Add user_id to each activity
+      const activitiesWithUserId = formattedData.map(activity => ({
+        ...activity,
+        user_id: session.user.id
+      }));
+      
       // Insert into database
       const { error } = await supabase
         .from('activities')
-        .insert(formattedData);
+        .insert(activitiesWithUserId);
       
       if (error) throw error;
       
