@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { CSVRow } from "../types/csv";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import EditableCSVRow from './EditableCSVRow';
-import { isWeekend, isPublicHoliday } from '@/utils/dateUtils';
+import { isWeekend, isPublicHoliday, getHolidayInfo } from '@/utils/dateUtils';
 
 interface CSVTableProps {
   data: CSVRow[];
@@ -38,11 +38,25 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
   // Helper function to determine if a specific date is weekend or holiday and get the appropriate message
   const getDateIssue = (date: string) => {
     const isDateWeekend = isWeekend(date);
-    const isDateHoliday = isPublicHoliday(date);
+    const holidayInfo = getHolidayInfo(date);
     
-    if (isDateWeekend && isDateHoliday) return { hasIssue: true, message: 'Weekend & Holiday' };
-    if (isDateWeekend) return { hasIssue: true, message: 'Weekend' };
-    if (isDateHoliday) return { hasIssue: true, message: 'Holiday' };
+    if (isDateWeekend && holidayInfo.isHoliday) {
+      return { 
+        hasIssue: true, 
+        message: `Weekend & ${holidayInfo.name} (${holidayInfo.states?.join(", ")})` 
+      };
+    }
+    
+    if (isDateWeekend) {
+      return { hasIssue: true, message: 'Weekend' };
+    }
+    
+    if (holidayInfo.isHoliday) {
+      return { 
+        hasIssue: true, 
+        message: `${holidayInfo.name} (${holidayInfo.states?.join(", ")})` 
+      };
+    }
     
     return { hasIssue: false, message: '' };
   };

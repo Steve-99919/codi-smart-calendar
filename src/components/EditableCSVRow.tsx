@@ -4,7 +4,7 @@ import { CSVRow } from "../types/csv";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Check, X } from "lucide-react";
-import { isValidDateFormat, isWeekend, isPublicHoliday } from '@/utils/dateUtils';
+import { isValidDateFormat, isWeekend, isPublicHoliday, getHolidayInfo } from '@/utils/dateUtils';
 
 interface EditableCSVRowProps {
   row: CSVRow;
@@ -39,9 +39,35 @@ const EditableCSVRow = ({ row, index, onSave, onCancel }: EditableCSVRowProps) =
     onSave(index, editedRow);
   };
 
-  // Helper functions to determine date issues
-  const isPrepDateIssue = !dateErrors.prepDate && (isWeekend(editedRow.prepDate) || isPublicHoliday(editedRow.prepDate));
-  const isGoDateIssue = !dateErrors.goDate && (isWeekend(editedRow.goDate) || isPublicHoliday(editedRow.goDate));
+  // Helper function to get date issue information
+  const getDateIssue = (date: string) => {
+    if (!isValidDateFormat(date)) return { hasIssue: false, message: '' };
+    
+    const isDateWeekend = isWeekend(date);
+    const holidayInfo = getHolidayInfo(date);
+    
+    if (isDateWeekend && holidayInfo.isHoliday) {
+      return { 
+        hasIssue: true, 
+        message: `Weekend & ${holidayInfo.name} (${holidayInfo.states?.join(", ")})` 
+      };
+    }
+    
+    if (isDateWeekend) return { hasIssue: true, message: 'Weekend' };
+    
+    if (holidayInfo.isHoliday) {
+      return { 
+        hasIssue: true, 
+        message: `${holidayInfo.name} (${holidayInfo.states?.join(", ")})` 
+      };
+    }
+    
+    return { hasIssue: false, message: '' };
+  };
+  
+  // Get date issue information
+  const prepDateIssue = getDateIssue(editedRow.prepDate);
+  const goDateIssue = getDateIssue(editedRow.goDate);
   
   return (
     <tr className="border-b border-gray-200">
@@ -78,13 +104,12 @@ const EditableCSVRow = ({ row, index, onSave, onCancel }: EditableCSVRowProps) =
           <Input 
             value={editedRow.prepDate} 
             onChange={(e) => handleInputChange('prepDate', e.target.value)} 
-            className={`h-8 text-sm ${dateErrors.prepDate ? 'border-red-500' : isPrepDateIssue ? 'bg-red-100' : ''}`}
+            className={`h-8 text-sm ${dateErrors.prepDate ? 'border-red-500' : prepDateIssue.hasIssue ? 'bg-red-100' : ''}`}
             placeholder="dd/mm/yyyy"
           />
-          {isPrepDateIssue && !dateErrors.prepDate && (
+          {prepDateIssue.hasIssue && !dateErrors.prepDate && (
             <span className="text-xs text-red-500 mt-1">
-              {isWeekend(editedRow.prepDate) && isPublicHoliday(editedRow.prepDate) ? 'Weekend & Holiday' : 
-               isWeekend(editedRow.prepDate) ? 'Weekend' : 'Holiday'}
+              {prepDateIssue.message}
             </span>
           )}
         </div>
@@ -94,13 +119,12 @@ const EditableCSVRow = ({ row, index, onSave, onCancel }: EditableCSVRowProps) =
           <Input 
             value={editedRow.goDate} 
             onChange={(e) => handleInputChange('goDate', e.target.value)} 
-            className={`h-8 text-sm ${dateErrors.goDate ? 'border-red-500' : isGoDateIssue ? 'bg-red-100' : ''}`}
+            className={`h-8 text-sm ${dateErrors.goDate ? 'border-red-500' : goDateIssue.hasIssue ? 'bg-red-100' : ''}`}
             placeholder="dd/mm/yyyy"
           />
-          {isGoDateIssue && !dateErrors.goDate && (
+          {goDateIssue.hasIssue && !dateErrors.goDate && (
             <span className="text-xs text-red-500 mt-1">
-              {isWeekend(editedRow.goDate) && isPublicHoliday(editedRow.goDate) ? 'Weekend & Holiday' : 
-               isWeekend(editedRow.goDate) ? 'Weekend' : 'Holiday'}
+              {goDateIssue.message}
             </span>
           )}
         </div>
