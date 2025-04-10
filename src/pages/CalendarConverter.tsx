@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -15,23 +14,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { format, isWeekend, parseISO, parse } from 'date-fns';
-
-// Google Calendar API credentials
-const CLIENT_ID = '962924990476-900r62gdobeo6u9mmm94jegk55ob3csu.apps.googleusercontent.com';
-const API_KEY = ''; // Public API key isn't needed for OAuth flow
-const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'];
-const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
-
-interface CSVRow {
-  activityId: string;
-  activityName: string;
-  description: string;
-  strategy: string;
-  prepDate: string;
-  goDate: string;
-  isValid: boolean;
-  invalidReason?: string;
-}
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const CalendarConverter = () => {
   const navigate = useNavigate();
@@ -44,7 +32,6 @@ const CalendarConverter = () => {
   const [isGapiLoaded, setIsGapiLoaded] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
 
-  // Check user session
   useEffect(() => {
     const checkSession = async () => {
       setLoading(true);
@@ -66,7 +53,6 @@ const CalendarConverter = () => {
     checkSession();
   }, [navigate]);
 
-  // Load Google API client
   useEffect(() => {
     const loadGapiClient = () => {
       const script = document.createElement('script');
@@ -86,9 +72,7 @@ const CalendarConverter = () => {
         })
         .then(() => {
           setIsGapiLoaded(true);
-          // Listen for sign-in state changes
           window.gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
-          // Handle the initial sign-in state
           updateSigninStatus(window.gapi.auth2.getAuthInstance().isSignedIn.get());
         })
         .catch((error: any) => {
@@ -102,7 +86,6 @@ const CalendarConverter = () => {
 
     loadGapiClient();
 
-    // Cleanup
     return () => {
       const gapiScript = document.querySelector('script[src="https://apis.google.com/js/api.js"]');
       if (gapiScript) {
@@ -111,7 +94,6 @@ const CalendarConverter = () => {
     };
   }, []);
 
-  // Fetch Australian public holidays
   useEffect(() => {
     const fetchPublicHolidays = async () => {
       try {
@@ -141,10 +123,8 @@ const CalendarConverter = () => {
       const content = e.target?.result as string;
       const rows = content.split('\n');
       
-      // Skip header row and parse data
       const parsedData: CSVRow[] = [];
       
-      // Parse header to identify column indices
       const headers = rows[0].split(',').map(header => header.trim());
       const indices = {
         activityId: headers.findIndex(h => h.toLowerCase().includes('activity id')),
@@ -155,36 +135,30 @@ const CalendarConverter = () => {
         goDate: headers.findIndex(h => h.toLowerCase().includes('go date')),
       };
 
-      // Validate CSV structure
       if (Object.values(indices).some(index => index === -1)) {
         toast.error('CSV format does not match expected columns');
         return;
       }
 
-      // Parse data rows
       for (let i = 1; i < rows.length; i++) {
-        if (!rows[i].trim()) continue; // Skip empty rows
+        if (!rows[i].trim()) continue;
         
         const columns = rows[i].split(',').map(col => col.trim());
         
-        // Skip rows with insufficient data
         if (columns.length < 6) continue;
 
         const prepDateStr = columns[indices.prepDate];
         const goDateStr = columns[indices.goDate];
 
-        // Validate and parse dates
         let prepDate: Date | null = null;
         let goDate: Date | null = null;
         let isValid = true;
         let invalidReason = '';
 
         try {
-          // Parse dates in dd/mm/yyyy format
           prepDate = parse(prepDateStr, 'dd/MM/yyyy', new Date());
           goDate = parse(goDateStr, 'dd/MM/yyyy', new Date());
           
-          // Validate prep date
           if (prepDate && isNaN(prepDate.getTime())) {
             isValid = false;
             invalidReason = 'Invalid PREP date format';
@@ -200,7 +174,6 @@ const CalendarConverter = () => {
             invalidReason = 'PREP date falls on an Australian public holiday';
           }
 
-          // Validate go date
           if (goDate && isNaN(goDate.getTime())) {
             isValid = false;
             invalidReason = 'Invalid GO date format';
@@ -267,7 +240,6 @@ const CalendarConverter = () => {
     try {
       for (const event of validEvents) {
         try {
-          // Create PREP Date event
           const prepDate = parse(event.prepDate, 'dd/MM/yyyy', new Date());
           const prepEvent = {
             'summary': `PREP: ${event.activityName}`,
@@ -287,7 +259,6 @@ const CalendarConverter = () => {
             'resource': prepEvent
           });
 
-          // Create GO Date event
           const goDate = parse(event.goDate, 'dd/MM/yyyy', new Date());
           const goEvent = {
             'summary': `GO: ${event.activityName}`,
@@ -307,7 +278,7 @@ const CalendarConverter = () => {
             'resource': goEvent
           });
 
-          successCount += 2; // Count both events
+          successCount += 2;
         } catch (error) {
           console.error('Error adding event to calendar:', error);
           errorCount += 1;
@@ -424,7 +395,14 @@ const CalendarConverter = () => {
                           {row.isValid ? (
                             <Check className="h-5 w-5 text-green-500" />
                           ) : (
-                            <AlertCircle className="h-5 w-5 text-red-500" title={row.invalidReason} />
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <AlertCircle className="h-5 w-5 text-red-500" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {row.invalidReason}
+                              </TooltipContent>
+                            </Tooltip>
                           )}
                         </TableCell>
                         <TableCell>{row.activityId}</TableCell>
