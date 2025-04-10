@@ -9,6 +9,83 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      activities: {
+        Row: {
+          activity_id: string
+          activity_name: string
+          created_at: string
+          description: string | null
+          go_date: string
+          id: string
+          prep_date: string
+          strategy: string | null
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          activity_name: string
+          created_at?: string
+          description?: string | null
+          go_date: string
+          id?: string
+          prep_date: string
+          strategy?: string | null
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          activity_name?: string
+          created_at?: string
+          description?: string | null
+          go_date?: string
+          id?: string
+          prep_date?: string
+          strategy?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      event_statuses: {
+        Row: {
+          activity_id: string
+          created_at: string
+          event_type: string
+          id: string
+          notes: string | null
+          status: string
+          status_updated_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          activity_id: string
+          created_at?: string
+          event_type: string
+          id?: string
+          notes?: string | null
+          status?: string
+          status_updated_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activity_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          notes?: string | null
+          status?: string
+          status_updated_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_statuses_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

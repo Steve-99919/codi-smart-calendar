@@ -17,6 +17,7 @@ const Dashboard = () => {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [csvData, setCsvData] = useState<CSVRow[]>([]);
   const [hasUploadedFile, setHasUploadedFile] = useState(false);
+  const [savingToDatabase, setSavingToDatabase] = useState(false);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -66,6 +67,30 @@ const Dashboard = () => {
       if (hasIssues) {
         toast.warning('Some dates fall on weekends or public holidays (highlighted in red)');
       }
+      
+      // Check for PREP dates that are after GO dates
+      const hasSequenceIssues = parsedData.some(row => {
+        const prepParts = row.prepDate.split('/');
+        const goParts = row.goDate.split('/');
+        if (prepParts.length === 3 && goParts.length === 3) {
+          const prepDate = new Date(
+            parseInt(prepParts[2]), 
+            parseInt(prepParts[1]) - 1, 
+            parseInt(prepParts[0])
+          );
+          const goDate = new Date(
+            parseInt(goParts[2]), 
+            parseInt(goParts[1]) - 1, 
+            parseInt(goParts[0])
+          );
+          return prepDate > goDate;
+        }
+        return false;
+      });
+      
+      if (hasSequenceIssues) {
+        toast.warning('Some activities have PREP dates after GO dates (highlighted in amber)');
+      }
     } catch (error) {
       console.error('Error parsing CSV:', error);
       toast.error('Failed to parse CSV file');
@@ -74,6 +99,71 @@ const Dashboard = () => {
 
   const handleUpdateData = (newData: CSVRow[]) => {
     setCsvData(newData);
+  };
+  
+  const saveToDatabase = async () => {
+    if (csvData.length === 0) return;
+    
+    try {
+      setSavingToDatabase(true);
+      
+      // Check for any PREP dates after GO dates
+      const hasSequenceIssues = csvData.some(row => {
+        const prepParts = row.prepDate.split('/');
+        const goParts = row.goDate.split('/');
+        if (prepParts.length === 3 && goParts.length === 3) {
+          const prepDate = new Date(
+            parseInt(prepParts[2]), 
+            parseInt(prepParts[1]) - 1, 
+            parseInt(prepParts[0])
+          );
+          const goDate = new Date(
+            parseInt(goParts[2]), 
+            parseInt(goParts[1]) - 1, 
+            parseInt(goParts[0])
+          );
+          return prepDate > goDate;
+        }
+        return false;
+      });
+      
+      if (hasSequenceIssues) {
+        toast.error('Cannot save to database. Please correct PREP dates that occur after GO dates.');
+        setSavingToDatabase(false);
+        return;
+      }
+      
+      // Format dates as YYYY-MM-DD for PostgreSQL
+      const formattedData = csvData.map(row => {
+        const prepParts = row.prepDate.split('/');
+        const goParts = row.goDate.split('/');
+        
+        return {
+          activity_id: row.activityId,
+          activity_name: row.activityName,
+          description: row.description,
+          strategy: row.strategy,
+          prep_date: `${prepParts[2]}-${prepParts[1]}-${prepParts[0]}`,
+          go_date: `${goParts[2]}-${goParts[1]}-${goParts[0]}`
+        };
+      });
+      
+      // Insert into database
+      const { error } = await supabase
+        .from('activities')
+        .insert(formattedData);
+      
+      if (error) throw error;
+      
+      toast.success(`Successfully saved ${csvData.length} activities to database`);
+      toast.info('You can now track these activities in the Tracking Events page');
+      
+    } catch (error: any) {
+      console.error('Error saving to database:', error);
+      toast.error(`Failed to save to database: ${error.message || 'Unknown error'}`);
+    } finally {
+      setSavingToDatabase(false);
+    }
   };
 
   if (loading) {
@@ -86,6 +176,12 @@ const Dashboard = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Logo />
           <div className="flex items-center gap-4">
+            <Button variant="ghost" onClick={() => navigate('/dashboard')} className="font-medium">
+              Dashboard
+            </Button>
+            <Button variant="ghost" onClick={() => navigate('/tracking-events')}>
+              Track Events
+            </Button>
             <span className="text-gray-600">{userEmail}</span>
             <Button variant="outline" onClick={handleLogout}>
               Logout
@@ -114,6 +210,12 @@ const Dashboard = () => {
                     }}
                   >
                     Upload another file
+                  </Button>
+                  <Button 
+                    onClick={saveToDatabase}
+                    disabled={savingToDatabase}
+                  >
+                    {savingToDatabase ? 'Saving...' : 'Save to Database'}
                   </Button>
                 </div>
               </div>
