@@ -4,7 +4,7 @@ import { CSVRow } from "../types/csv";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Check, X } from "lucide-react";
-import { isValidDateFormat } from '@/utils/dateUtils';
+import { isValidDateFormat, isWeekend, isPublicHoliday } from '@/utils/dateUtils';
 
 interface EditableCSVRowProps {
   row: CSVRow;
@@ -38,6 +38,10 @@ const EditableCSVRow = ({ row, index, onSave, onCancel }: EditableCSVRowProps) =
     }
     onSave(index, editedRow);
   };
+
+  // Helper functions to determine date issues
+  const isPrepDateIssue = !dateErrors.prepDate && (isWeekend(editedRow.prepDate) || isPublicHoliday(editedRow.prepDate));
+  const isGoDateIssue = !dateErrors.goDate && (isWeekend(editedRow.goDate) || isPublicHoliday(editedRow.goDate));
   
   return (
     <tr className="border-b border-gray-200">
@@ -70,20 +74,36 @@ const EditableCSVRow = ({ row, index, onSave, onCancel }: EditableCSVRowProps) =
         />
       </td>
       <td className="p-2">
-        <Input 
-          value={editedRow.prepDate} 
-          onChange={(e) => handleInputChange('prepDate', e.target.value)} 
-          className={`h-8 text-sm ${dateErrors.prepDate ? 'border-red-500' : ''}`}
-          placeholder="dd/mm/yyyy"
-        />
+        <div className="flex flex-col">
+          <Input 
+            value={editedRow.prepDate} 
+            onChange={(e) => handleInputChange('prepDate', e.target.value)} 
+            className={`h-8 text-sm ${dateErrors.prepDate ? 'border-red-500' : isPrepDateIssue ? 'bg-red-100' : ''}`}
+            placeholder="dd/mm/yyyy"
+          />
+          {isPrepDateIssue && !dateErrors.prepDate && (
+            <span className="text-xs text-red-500 mt-1">
+              {isWeekend(editedRow.prepDate) && isPublicHoliday(editedRow.prepDate) ? 'Weekend & Holiday' : 
+               isWeekend(editedRow.prepDate) ? 'Weekend' : 'Holiday'}
+            </span>
+          )}
+        </div>
       </td>
       <td className="p-2">
-        <Input 
-          value={editedRow.goDate} 
-          onChange={(e) => handleInputChange('goDate', e.target.value)} 
-          className={`h-8 text-sm ${dateErrors.goDate ? 'border-red-500' : ''}`}
-          placeholder="dd/mm/yyyy"
-        />
+        <div className="flex flex-col">
+          <Input 
+            value={editedRow.goDate} 
+            onChange={(e) => handleInputChange('goDate', e.target.value)} 
+            className={`h-8 text-sm ${dateErrors.goDate ? 'border-red-500' : isGoDateIssue ? 'bg-red-100' : ''}`}
+            placeholder="dd/mm/yyyy"
+          />
+          {isGoDateIssue && !dateErrors.goDate && (
+            <span className="text-xs text-red-500 mt-1">
+              {isWeekend(editedRow.goDate) && isPublicHoliday(editedRow.goDate) ? 'Weekend & Holiday' : 
+               isWeekend(editedRow.goDate) ? 'Weekend' : 'Holiday'}
+            </span>
+          )}
+        </div>
       </td>
       <td className="p-2 flex gap-2">
         <Button variant="ghost" size="sm" onClick={handleSave} disabled={dateErrors.prepDate || dateErrors.goDate}>

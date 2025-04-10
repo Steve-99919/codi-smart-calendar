@@ -34,6 +34,18 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
   const handleCancelEdit = () => {
     setEditingIndex(null);
   };
+
+  // Helper function to determine if a specific date is weekend or holiday and get the appropriate message
+  const getDateIssue = (date: string) => {
+    const isDateWeekend = isWeekend(date);
+    const isDateHoliday = isPublicHoliday(date);
+    
+    if (isDateWeekend && isDateHoliday) return { hasIssue: true, message: 'Weekend & Holiday' };
+    if (isDateWeekend) return { hasIssue: true, message: 'Weekend' };
+    if (isDateHoliday) return { hasIssue: true, message: 'Holiday' };
+    
+    return { hasIssue: false, message: '' };
+  };
   
   return (
     <div className="overflow-x-auto border rounded-lg">
@@ -69,21 +81,42 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
                 <TableCell>{row.activityName}</TableCell>
                 <TableCell>{row.description}</TableCell>
                 <TableCell>{row.strategy}</TableCell>
-                <TableCell className={`${row.isWeekend || row.isHoliday ? 'bg-red-100' : ''}`}>
-                  {row.prepDate}
-                </TableCell>
-                <TableCell className={`${row.isWeekend || row.isHoliday ? 'bg-red-100' : ''}`}>
-                  {row.goDate}
+                {/* Individual date cells with conditional highlighting */}
+                <TableCell>
+                  <div className="flex flex-col">
+                    {(() => {
+                      const prepDateIssue = getDateIssue(row.prepDate);
+                      return (
+                        <>
+                          <span className={`${prepDateIssue.hasIssue ? 'bg-red-100 px-2 py-1 rounded' : ''}`}>
+                            {row.prepDate}
+                          </span>
+                          {prepDateIssue.hasIssue && (
+                            <span className="text-xs text-red-500 mt-1">{prepDateIssue.message}</span>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
                 </TableCell>
                 <TableCell>
-                  {(row.isWeekend || row.isHoliday) && (
-                    <span className="text-xs text-red-500">
-                      {row.isWeekend ? 'Weekend' : ''} 
-                      {row.isWeekend && row.isHoliday ? ' & ' : ''}
-                      {row.isHoliday ? 'Holiday' : ''}
-                    </span>
-                  )}
+                  <div className="flex flex-col">
+                    {(() => {
+                      const goDateIssue = getDateIssue(row.goDate);
+                      return (
+                        <>
+                          <span className={`${goDateIssue.hasIssue ? 'bg-red-100 px-2 py-1 rounded' : ''}`}>
+                            {row.goDate}
+                          </span>
+                          {goDateIssue.hasIssue && (
+                            <span className="text-xs text-red-500 mt-1">{goDateIssue.message}</span>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
                 </TableCell>
+                <TableCell></TableCell>
               </TableRow>
             )
           ))}
