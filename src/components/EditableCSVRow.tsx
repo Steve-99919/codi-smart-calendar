@@ -4,16 +4,24 @@ import { CSVRow } from "../types/csv";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Check, X } from "lucide-react";
-import { isValidDateFormat, isWeekend, isPublicHoliday, getHolidayInfo } from '@/utils/dateUtils';
+import { 
+  isValidDateFormat, 
+  isWeekend, 
+  isPublicHoliday, 
+  getHolidayInfo, 
+  findDateConflicts, 
+  getConflictingEvents 
+} from '@/utils/dateUtils';
 
 interface EditableCSVRowProps {
   row: CSVRow;
   index: number;
   onSave: (index: number, updatedRow: CSVRow) => void;
   onCancel: () => void;
+  data: CSVRow[];
 }
 
-const EditableCSVRow = ({ row, index, onSave, onCancel }: EditableCSVRowProps) => {
+const EditableCSVRow = ({ row, index, onSave, onCancel, data }: EditableCSVRowProps) => {
   const [editedRow, setEditedRow] = useState<CSVRow>({ ...row });
   const [dateErrors, setDateErrors] = useState({
     prepDate: false,
@@ -45,20 +53,27 @@ const EditableCSVRow = ({ row, index, onSave, onCancel }: EditableCSVRowProps) =
     
     const isDateWeekend = isWeekend(date);
     const holidayInfo = getHolidayInfo(date);
+    const hasConflict = findDateConflicts(data, date, index);
+    const conflictingEvents = hasConflict ? getConflictingEvents(data, date, index) : [];
+    
+    const issues = [];
     
     if (isDateWeekend && holidayInfo.isHoliday) {
-      return { 
-        hasIssue: true, 
-        message: `Weekend & ${holidayInfo.name} (${holidayInfo.states?.join(", ")})` 
-      };
+      issues.push(`Weekend & ${holidayInfo.name} (${holidayInfo.states?.join(", ")})`);
+    } else if (isDateWeekend) {
+      issues.push('Weekend');
+    } else if (holidayInfo.isHoliday) {
+      issues.push(`${holidayInfo.name} (${holidayInfo.states?.join(", ")})`);
     }
     
-    if (isDateWeekend) return { hasIssue: true, message: 'Weekend' };
+    if (hasConflict) {
+      issues.push(`Conflict with: ${conflictingEvents.join(', ')}`);
+    }
     
-    if (holidayInfo.isHoliday) {
+    if (issues.length > 0) {
       return { 
         hasIssue: true, 
-        message: `${holidayInfo.name} (${holidayInfo.states?.join(", ")})` 
+        message: issues.join(' & ')
       };
     }
     
@@ -68,6 +83,10 @@ const EditableCSVRow = ({ row, index, onSave, onCancel }: EditableCSVRowProps) =
   // Get date issue information
   const prepDateIssue = getDateIssue(editedRow.prepDate);
   const goDateIssue = getDateIssue(editedRow.goDate);
+  
+  // Check if there are conflicts
+  const hasPrepConflict = findDateConflicts(data, editedRow.prepDate, index);
+  const hasGoConflict = findDateConflicts(data, editedRow.goDate, index);
   
   return (
     <tr className="border-b border-gray-200">
@@ -104,7 +123,9 @@ const EditableCSVRow = ({ row, index, onSave, onCancel }: EditableCSVRowProps) =
           <Input 
             value={editedRow.prepDate} 
             onChange={(e) => handleInputChange('prepDate', e.target.value)} 
-            className={`h-8 text-sm ${dateErrors.prepDate ? 'border-red-500' : prepDateIssue.hasIssue ? 'bg-red-100' : ''}`}
+            className={`h-8 text-sm ${dateErrors.prepDate ? 'border-red-500' : 
+              prepDateIssue.hasIssue ? 'bg-red-100' : ''} 
+              ${hasPrepConflict ? 'border-2 border-red-500' : ''}`}
             placeholder="dd/mm/yyyy"
           />
           {prepDateIssue.hasIssue && !dateErrors.prepDate && (
@@ -119,7 +140,9 @@ const EditableCSVRow = ({ row, index, onSave, onCancel }: EditableCSVRowProps) =
           <Input 
             value={editedRow.goDate} 
             onChange={(e) => handleInputChange('goDate', e.target.value)} 
-            className={`h-8 text-sm ${dateErrors.goDate ? 'border-red-500' : goDateIssue.hasIssue ? 'bg-red-100' : ''}`}
+            className={`h-8 text-sm ${dateErrors.goDate ? 'border-red-500' : 
+              goDateIssue.hasIssue ? 'bg-red-100' : ''}
+              ${hasGoConflict ? 'border-2 border-red-500' : ''}`}
             placeholder="dd/mm/yyyy"
           />
           {goDateIssue.hasIssue && !dateErrors.goDate && (

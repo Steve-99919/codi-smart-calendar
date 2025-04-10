@@ -166,3 +166,42 @@ export const formatDate = (dateStr: string): string => {
     return dateStr; // Return original if conversion failed
   }
 };
+
+// New function to check for date conflicts across events
+export const findDateConflicts = (data: any[], dateToCheck: string, currentIndex: number): boolean => {
+  if (!dateToCheck || !isValidDateFormat(dateToCheck)) {
+    return false;
+  }
+  
+  return data.some((item, index) => {
+    // Skip comparing with itself
+    if (index === currentIndex) {
+      return false;
+    }
+    
+    // Check for conflicts with both prepDate and goDate
+    return (item.prepDate === dateToCheck || item.goDate === dateToCheck);
+  });
+};
+
+// New function to get conflicting event names
+export const getConflictingEvents = (data: any[], dateToCheck: string, currentIndex: number): string[] => {
+  if (!dateToCheck || !isValidDateFormat(dateToCheck)) {
+    return [];
+  }
+  
+  return data
+    .filter((item, index) => {
+      if (index === currentIndex) return false;
+      return (item.prepDate === dateToCheck || item.goDate === dateToCheck);
+    })
+    .map(item => item.activityName);
+};
+
+// Check if any dates in the data have conflicts
+export const hasAnyConflicts = (data: any[]): boolean => {
+  return data.some((row, index) => {
+    return findDateConflicts(data, row.prepDate, index) || 
+           findDateConflicts(data, row.goDate, index);
+  });
+};

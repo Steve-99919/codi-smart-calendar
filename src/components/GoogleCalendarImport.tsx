@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { CalendarPlus } from 'lucide-react';
+import { CalendarPlus, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { downloadICS } from '@/utils/calendarUtils';
 import { CSVRow } from '@/types/csv';
@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/popover";
 import { Input } from '@/components/ui/input';
 import { toast } from "sonner";
+import { hasAnyConflicts, isWeekend, isPublicHoliday } from '@/utils/dateUtils';
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface GoogleCalendarImportProps {
   data: CSVRow[];
@@ -21,9 +23,21 @@ const GoogleCalendarImport = ({ data, disabled = false }: GoogleCalendarImportPr
   const [calendarName, setCalendarName] = useState('Activity Calendar');
   const [open, setOpen] = useState(false);
   
+  // Check for date conflicts, weekends, and holidays
+  const hasConflicts = hasAnyConflicts(data);
+  const hasWeekendOrHoliday = data.some(row => 
+    isWeekend(row.prepDate) || isWeekend(row.goDate) || 
+    isPublicHoliday(row.prepDate) || isPublicHoliday(row.goDate)
+  );
+  
   const handleImport = () => {
     if (!calendarName.trim()) {
       toast.error('Please enter a calendar name');
+      return;
+    }
+    
+    if (hasConflicts) {
+      toast.error('Cannot import calendar with date conflicts');
       return;
     }
     
@@ -59,6 +73,24 @@ const GoogleCalendarImport = ({ data, disabled = false }: GoogleCalendarImportPr
             separate events for PREP and GO dates ({totalEvents} events total).
           </p>
           
+          {hasConflicts && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                Some dates have conflicts with other events. Please resolve all date conflicts before importing.
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {!hasConflicts && hasWeekendOrHoliday && (
+            <Alert variant="warning" className="bg-amber-50 border-amber-200">
+              <AlertCircle className="h-4 w-4 text-amber-500" />
+              <AlertDescription className="text-xs text-amber-700">
+                Some dates fall on weekends or holidays. You can proceed, but consider checking these dates.
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <div className="space-y-2">
             <label htmlFor="calendar-name" className="text-sm font-medium">
               Calendar Name
@@ -75,7 +107,12 @@ const GoogleCalendarImport = ({ data, disabled = false }: GoogleCalendarImportPr
             <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button size="sm" onClick={handleImport}>
+            <Button 
+              size="sm" 
+              onClick={handleImport} 
+              disabled={hasConflicts}
+              className={hasConflicts ? "opacity-50 cursor-not-allowed" : ""}
+            >
               Generate ICS File
             </Button>
           </div>

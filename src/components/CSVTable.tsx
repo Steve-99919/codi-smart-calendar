@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { CSVRow } from "../types/csv";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import EditableCSVRow from './EditableCSVRow';
-import { isWeekend, isPublicHoliday, getHolidayInfo } from '@/utils/dateUtils';
+import { isWeekend, isPublicHoliday, getHolidayInfo, findDateConflicts, getConflictingEvents } from '@/utils/dateUtils';
 
 interface CSVTableProps {
   data: CSVRow[];
@@ -36,25 +36,30 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
   };
 
   // Helper function to determine if a specific date is weekend or holiday and get the appropriate message
-  const getDateIssue = (date: string) => {
+  const getDateIssue = (date: string, rowIndex: number) => {
     const isDateWeekend = isWeekend(date);
     const holidayInfo = getHolidayInfo(date);
+    const hasConflict = findDateConflicts(data, date, rowIndex);
+    const conflictingEvents = hasConflict ? getConflictingEvents(data, date, rowIndex) : [];
     
-    if (isDateWeekend && holidayInfo.isHoliday) {
-      return { 
-        hasIssue: true, 
-        message: `Weekend & ${holidayInfo.name} (${holidayInfo.states?.join(", ")})` 
-      };
-    }
+    const issues = [];
     
     if (isDateWeekend) {
-      return { hasIssue: true, message: 'Weekend' };
+      issues.push('Weekend');
     }
     
     if (holidayInfo.isHoliday) {
+      issues.push(`${holidayInfo.name} (${holidayInfo.states?.join(", ")})`);
+    }
+    
+    if (hasConflict) {
+      issues.push(`Conflict with: ${conflictingEvents.join(', ')}`);
+    }
+    
+    if (issues.length > 0) {
       return { 
         hasIssue: true, 
-        message: `${holidayInfo.name} (${holidayInfo.states?.join(", ")})` 
+        message: issues.join(' & ')
       };
     }
     
@@ -84,6 +89,7 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
                 index={index}
                 onSave={handleSaveRow}
                 onCancel={handleCancelEdit}
+                data={data}
               />
             ) : (
               <TableRow 
@@ -99,10 +105,11 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
                 <TableCell>
                   <div className="flex flex-col">
                     {(() => {
-                      const prepDateIssue = getDateIssue(row.prepDate);
+                      const prepDateIssue = getDateIssue(row.prepDate, index);
+                      const hasConflict = findDateConflicts(data, row.prepDate, index);
                       return (
                         <>
-                          <span className={`${prepDateIssue.hasIssue ? 'bg-red-100 px-2 py-1 rounded' : ''}`}>
+                          <span className={`${prepDateIssue.hasIssue ? 'bg-red-100 px-2 py-1 rounded' : ''} ${hasConflict ? 'border-2 border-red-500' : ''}`}>
                             {row.prepDate}
                           </span>
                           {prepDateIssue.hasIssue && (
@@ -116,10 +123,11 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
                 <TableCell>
                   <div className="flex flex-col">
                     {(() => {
-                      const goDateIssue = getDateIssue(row.goDate);
+                      const goDateIssue = getDateIssue(row.goDate, index);
+                      const hasConflict = findDateConflicts(data, row.goDate, index);
                       return (
                         <>
-                          <span className={`${goDateIssue.hasIssue ? 'bg-red-100 px-2 py-1 rounded' : ''}`}>
+                          <span className={`${goDateIssue.hasIssue ? 'bg-red-100 px-2 py-1 rounded' : ''} ${hasConflict ? 'border-2 border-red-500' : ''}`}>
                             {row.goDate}
                           </span>
                           {goDateIssue.hasIssue && (
