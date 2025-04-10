@@ -1,9 +1,26 @@
 
 import { useState } from 'react';
+import { format, parse } from 'date-fns';
 import { CSVRow } from "../types/csv";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import EditableCSVRow from './EditableCSVRow';
-import { isWeekend, isPublicHoliday, getHolidayInfo, findDateConflicts, getConflictingEvents } from '@/utils/dateUtils';
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from '@/lib/utils';
+import { 
+  isWeekend, 
+  isPublicHoliday, 
+  getHolidayInfo, 
+  findDateConflicts, 
+  getConflictingEvents, 
+  isValidDateFormat,
+  isDateBefore 
+} from '@/utils/dateUtils';
 
 interface CSVTableProps {
   data: CSVRow[];
@@ -33,6 +50,36 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
   
   const handleCancelEdit = () => {
     setEditingIndex(null);
+  };
+
+  // Helper function to convert dd/mm/yyyy to Date
+  const parseDate = (dateStr: string): Date | undefined => {
+    if (!isValidDateFormat(dateStr)) return undefined;
+    return parse(dateStr, 'dd/MM/yyyy', new Date());
+  };
+
+  // Helper function to convert Date to dd/mm/yyyy
+  const formatDateString = (date: Date): string => {
+    return format(date, 'dd/MM/yyyy');
+  };
+  
+  // Handle date selection from calendar for non-edit mode
+  const handleDateSelect = (index: number, field: 'prepDate' | 'goDate', date: Date | undefined) => {
+    if (!date) return;
+    
+    const formattedDate = formatDateString(date);
+    const newData = [...data];
+    newData[index] = { ...newData[index], [field]: formattedDate };
+    
+    // Update weekend/holiday flags
+    newData[index].isWeekend = 
+      isWeekend(newData[index].prepDate) || 
+      isWeekend(newData[index].goDate);
+    newData[index].isHoliday = 
+      isPublicHoliday(newData[index].prepDate) || 
+      isPublicHoliday(newData[index].goDate);
+    
+    onUpdateData(newData);
   };
 
   // Helper function to determine if a specific date is weekend or holiday and get the appropriate message
@@ -101,19 +148,47 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
                 <TableCell>{row.activityName}</TableCell>
                 <TableCell>{row.description}</TableCell>
                 <TableCell>{row.strategy}</TableCell>
-                {/* Individual date cells with conditional highlighting */}
+                {/* Individual date cells with conditional highlighting and calendar picker */}
                 <TableCell>
                   <div className="flex flex-col">
                     {(() => {
                       const prepDateIssue = getDateIssue(row.prepDate, index);
                       const hasConflict = findDateConflicts(data, row.prepDate, index);
+                      const hasSequenceIssue = 
+                        isValidDateFormat(row.prepDate) && 
+                        isValidDateFormat(row.goDate) && 
+                        !isDateBefore(row.prepDate, row.goDate);
+                      
                       return (
                         <>
-                          <span className={`${prepDateIssue.hasIssue ? 'bg-red-100 px-2 py-1 rounded' : ''} ${hasConflict ? 'border-2 border-red-500' : ''}`}>
-                            {row.prepDate}
-                          </span>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <div className={cn(
+                                "flex items-center gap-1 px-2 py-1 rounded cursor-pointer",
+                                prepDateIssue.hasIssue ? 'bg-red-100' : '',
+                                hasConflict ? 'border-2 border-red-500' : '',
+                                hasSequenceIssue ? 'border-2 border-amber-500' : ''
+                              )}>
+                                <span>{row.prepDate}</span>
+                                <CalendarIcon className="h-3 w-3" />
+                              </div>
+                            </PopoverTrigger>
+                            <PopoverContent className="p-0 w-auto" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={parseDate(row.prepDate)}
+                                onSelect={(date) => handleDateSelect(index, 'prepDate', date)}
+                                className="rounded-md border"
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          
                           {prepDateIssue.hasIssue && (
                             <span className="text-xs text-red-500 mt-1">{prepDateIssue.message}</span>
+                          )}
+                          
+                          {hasSequenceIssue && (
+                            <span className="text-xs text-amber-500 mt-1">PREP date must be earlier than GO date</span>
                           )}
                         </>
                       );
@@ -125,11 +200,35 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
                     {(() => {
                       const goDateIssue = getDateIssue(row.goDate, index);
                       const hasConflict = findDateConflicts(data, row.goDate, index);
+                      const hasSequenceIssue = 
+                        isValidDateFormat(row.prepDate) && 
+                        isValidDateFormat(row.goDate) && 
+                        !isDateBefore(row.prepDate, row.goDate);
+                      
                       return (
                         <>
-                          <span className={`${goDateIssue.hasIssue ? 'bg-red-100 px-2 py-1 rounded' : ''} ${hasConflict ? 'border-2 border-red-500' : ''}`}>
-                            {row.goDate}
-                          </span>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <div className={cn(
+                                "flex items-center gap-1 px-2 py-1 rounded cursor-pointer",
+                                goDateIssue.hasIssue ? 'bg-red-100' : '',
+                                hasConflict ? 'border-2 border-red-500' : '',
+                                hasSequenceIssue ? 'border-2 border-amber-500' : ''
+                              )}>
+                                <span>{row.goDate}</span>
+                                <CalendarIcon className="h-3 w-3" />
+                              </div>
+                            </PopoverTrigger>
+                            <PopoverContent className="p-0 w-auto" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={parseDate(row.goDate)}
+                                onSelect={(date) => handleDateSelect(index, 'goDate', date)}
+                                className="rounded-md border"
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          
                           {goDateIssue.hasIssue && (
                             <span className="text-xs text-red-500 mt-1">{goDateIssue.message}</span>
                           )}

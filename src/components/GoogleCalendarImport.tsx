@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/popover";
 import { Input } from '@/components/ui/input';
 import { toast } from "sonner";
-import { hasAnyConflicts, isWeekend, isPublicHoliday } from '@/utils/dateUtils';
+import { hasAnyConflicts, isWeekend, isPublicHoliday, isDateBefore } from '@/utils/dateUtils';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface GoogleCalendarImportProps {
@@ -30,6 +30,11 @@ const GoogleCalendarImport = ({ data, disabled = false }: GoogleCalendarImportPr
     isPublicHoliday(row.prepDate) || isPublicHoliday(row.goDate)
   );
   
+  // Check for date sequence issues (PREP must be before GO)
+  const hasDateSequenceIssue = data.some(row => 
+    !isDateBefore(row.prepDate, row.goDate)
+  );
+  
   const handleImport = () => {
     if (!calendarName.trim()) {
       toast.error('Please enter a calendar name');
@@ -38,6 +43,11 @@ const GoogleCalendarImport = ({ data, disabled = false }: GoogleCalendarImportPr
     
     if (hasConflicts) {
       toast.error('Cannot import calendar with date conflicts');
+      return;
+    }
+    
+    if (hasDateSequenceIssue) {
+      toast.error('Cannot import calendar with invalid date sequences');
       return;
     }
     
@@ -82,8 +92,17 @@ const GoogleCalendarImport = ({ data, disabled = false }: GoogleCalendarImportPr
             </Alert>
           )}
           
-          {!hasConflicts && hasWeekendOrHoliday && (
-            <Alert variant="warning" className="bg-amber-50 border-amber-200">
+          {hasDateSequenceIssue && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                Some activities have PREP dates that are not before GO dates. Please fix these date sequences.
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {!hasConflicts && !hasDateSequenceIssue && hasWeekendOrHoliday && (
+            <Alert className="bg-amber-50 border-amber-200">
               <AlertCircle className="h-4 w-4 text-amber-500" />
               <AlertDescription className="text-xs text-amber-700">
                 Some dates fall on weekends or holidays. You can proceed, but consider checking these dates.
@@ -110,8 +129,8 @@ const GoogleCalendarImport = ({ data, disabled = false }: GoogleCalendarImportPr
             <Button 
               size="sm" 
               onClick={handleImport} 
-              disabled={hasConflicts}
-              className={hasConflicts ? "opacity-50 cursor-not-allowed" : ""}
+              disabled={hasConflicts || hasDateSequenceIssue}
+              className={(hasConflicts || hasDateSequenceIssue) ? "opacity-50 cursor-not-allowed" : ""}
             >
               Generate ICS File
             </Button>

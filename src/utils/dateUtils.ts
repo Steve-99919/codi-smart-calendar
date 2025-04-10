@@ -1,4 +1,3 @@
-
 // Function to check if a date is a weekend
 export const isWeekend = (dateStr: string): boolean => {
   // Parse the date in dd/mm/yyyy format
@@ -167,6 +166,21 @@ export const formatDate = (dateStr: string): string => {
   }
 };
 
+// Function to check if first date is before second date
+export const isDateBefore = (firstDate: string, secondDate: string): boolean => {
+  if (!isValidDateFormat(firstDate) || !isValidDateFormat(secondDate)) {
+    return true; // Skip validation if dates are not valid yet
+  }
+  
+  const [day1, month1, year1] = firstDate.split('/').map(Number);
+  const [day2, month2, year2] = secondDate.split('/').map(Number);
+  
+  const date1 = new Date(year1, month1 - 1, day1);
+  const date2 = new Date(year2, month2 - 1, day2);
+  
+  return date1 < date2;
+};
+
 // New function to check for date conflicts across events
 export const findDateConflicts = (data: any[], dateToCheck: string, currentIndex: number): boolean => {
   if (!dateToCheck || !isValidDateFormat(dateToCheck)) {
@@ -198,10 +212,11 @@ export const getConflictingEvents = (data: any[], dateToCheck: string, currentIn
     .map(item => item.activityName);
 };
 
-// Check if any dates in the data have conflicts
+// Check if any dates in the data have conflicts or invalid date sequences
 export const hasAnyConflicts = (data: any[]): boolean => {
   return data.some((row, index) => {
     return findDateConflicts(data, row.prepDate, index) || 
-           findDateConflicts(data, row.goDate, index);
+           findDateConflicts(data, row.goDate, index) ||
+           !isDateBefore(row.prepDate, row.goDate);
   });
 };
