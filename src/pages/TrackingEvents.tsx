@@ -9,11 +9,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Trash2 } from 'lucide-react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
-// Define color classes for statuses
+// Define color classes for statuses, map 'fail' DB status to "Delayed" UI label
 const STATUS_OPTIONS = [
-  { value: 'pending', label: 'Pending', colorClass: 'text-orange-500' },
-  { value: 'done', label: 'Done', colorClass: 'text-green-500' },
-  { value: 'delayed', label: 'Delayed', colorClass: 'text-red-500' },
+  { value: 'pending', label: 'Pending', colorClass: 'bg-orange-500 text-white' },
+  { value: 'done', label: 'Done', colorClass: 'bg-green-500 text-white' },
+  { value: 'fail', label: 'Delayed', colorClass: 'bg-red-500 text-white' }, // DB expects 'fail', label "Delayed"
 ];
 
 // Helper function returns color class for the current status value
@@ -235,12 +235,14 @@ const TrackingEvents = () => {
       return;
     }
 
+    // Only update if changed
     if (statusRecord.status === newStatus) {
       return;
     }
 
     try {
       setUpdatingStatuses((prev) => ({ ...prev, [statusRecord.id]: true }));
+
       const { error } = await supabase
         .from('event_statuses')
         .update({ status: newStatus, status_updated_at: new Date().toISOString() })
@@ -253,7 +255,8 @@ const TrackingEvents = () => {
         [statusKey]: { ...statusRecord, status: newStatus, status_updated_at: new Date().toISOString() },
       }));
 
-      toast.success(`Status updated to ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`);
+      const label = STATUS_OPTIONS.find(o => o.value === newStatus)?.label || newStatus;
+      toast.success(`Status updated to ${label}`);
     } catch (error) {
       console.error('Error updating status:', error);
       toast.error('Failed to update status');
@@ -454,3 +457,4 @@ const TrackingEvents = () => {
 };
 
 export default TrackingEvents;
+
