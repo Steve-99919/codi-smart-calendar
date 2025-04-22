@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
@@ -7,8 +6,6 @@ import { Button } from '@/components/ui/button';
 import Logo from '@/components/Logo';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Trash2 } from 'lucide-react';
-
-// New imports
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 const STATUS_OPTIONS = [
@@ -17,7 +14,6 @@ const STATUS_OPTIONS = [
   { value: 'delayed', label: 'Delayed' },
 ];
 
-// Helper function to format date from YYYY-MM-DD to DD/MM/YYYY
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '';
   const date = new Date(dateStr);
@@ -28,7 +24,6 @@ const formatDate = (dateStr: string) => {
   }).replace(/\//g, '/');
 };
 
-// Helper function to get midnight of a date string (local)
 const getDateMidnight = (dateStr: string) => {
   const d = new Date(dateStr);
   d.setHours(24, 0, 0, 0); // midnight next day
@@ -41,11 +36,11 @@ const TrackingEvents = () => {
   const [deleting, setDeleting] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [activities, setActivities] = useState<any[]>([]);
-  const [eventStatuses, setEventStatuses] = useState<Record<string, any>>({}); // Map event_status id to status info
+  const [eventStatuses, setEventStatuses] = useState<Record<string, any>>({}); // Map event_status key to status info
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-  const [updatingStatuses, setUpdatingStatuses] = useState<{[key:string]: boolean}>({}); // track loading for status updates per event_status id
+  const [updatingStatuses, setUpdatingStatuses] = useState<{ [key: string]: boolean }>({}); // track loading for status updates per event_status id
+  const [initializingStatuses, setInitializingStatuses] = useState(false);
 
-  // Fetch activities and statuses
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -56,16 +51,15 @@ const TrackingEvents = () => {
           return;
         }
         setUserEmail(sessionData.session.user.email);
+        const userId = sessionData.session.user.id;
 
-        // Fetch activities
         const { data: activitiesData, error: activitiesError } = await supabase
           .from('activities')
           .select('*')
-          .eq('user_id', sessionData.session.user.id)
+          .eq('user_id', userId)
           .order('prep_date', { ascending: true });
         if (activitiesError) throw activitiesError;
 
-        // Fetch event statuses for these activities
         const activityIds = (activitiesData || []).map((a) => a.id);
         let statusesData = [];
         if (activityIds.length > 0) {
@@ -77,7 +71,6 @@ const TrackingEvents = () => {
           statusesData = eventStatusesData || [];
         }
 
-        // Build map from activity_id + event_type to status info
         const statusMap: Record<string, any> = {};
         statusesData.forEach((st) => {
           statusMap[`${st.activity_id}_${st.event_type}`] = st;
@@ -86,8 +79,8 @@ const TrackingEvents = () => {
         setActivities(activitiesData || []);
         setEventStatuses(statusMap);
 
-        // After loading, process status auto updates for past dates with Pending status
-        // We update each event_status with 'pending' which date passed midnight to 'done' automatically
+        await initializeMissingStatuses(userId, activitiesData || [], statusMap);
+
         await autoUpdateStatuses(activitiesData || [], statusMap);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -102,6 +95,72 @@ const TrackingEvents = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
+  const initializeMissingStatuses = async (userId: string, activitiesData: any[], statusMap: Record<string, any>) => {
+    if (!activitiesData.length) return;
+
+    setInitializingStatuses(true);
+
+    const missingStatusRecords = [];
+
+    for (const activity of activitiesData) {
+      const prepKey = `${activity.id}_prep`;
+      if (!statusMap[prepKey]) {
+        missingStatusRecords.push({
+          activity_id: activity.id,
+          event_type: 'prep',
+          status: 'pending',
+          status_updated_at: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      }
+      const goKey = `${activity.id}_go`;
+      if (!statusMap[goKey]) {
+        missingStatusRecords.push({
+          activity_id: activity.id,
+          event_type: 'go',
+          status: 'pending',
+          status_updated_at: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      }
+    }
+
+    if (missingStatusRecords.length === 0) {
+      setInitializingStatuses(false);
+      return;
+    }
+
+    try {
+      const { data: insertedData, error: insertError } = await supabase
+        .from('event_statuses')
+        .insert(missingStatusRecords)
+        .select();
+
+      if (insertError) {
+        console.error('Error inserting missing statuses:', insertError);
+        toast.error('Failed to initialize some statuses');
+        setInitializingStatuses(false);
+        return;
+      }
+
+      const newStatusMap = { ...statusMap };
+      insertedData?.forEach((st: any) => {
+        const key = `${st.activity_id}_${st.event_type}`;
+        newStatusMap[key] = st;
+      });
+
+      setEventStatuses(newStatusMap);
+      toast.success(`Initialized ${insertedData.length} missing statuses as Pending`);
+    } catch (error) {
+      console.error('Unexpected error initializing missing statuses:', error);
+      toast.error('Failed to initialize some statuses');
+    } finally {
+      setInitializingStatuses(false);
+    }
+  };
+
   const autoUpdateStatuses = async (activitiesData: any[], statusMap: Record<string, any>) => {
     if (!activitiesData.length) return;
     let updatesCount = 0;
@@ -109,10 +168,8 @@ const TrackingEvents = () => {
     const updates = [];
 
     for (const activity of activitiesData) {
-      // Check PREP date
       const prepStatus = statusMap[`${activity.id}_prep`];
       if (prepStatus && prepStatus.status === 'pending') {
-        // If PREP date midnight passed, update to done
         const midnight = getDateMidnight(activity.prep_date);
         if (new Date() >= midnight) {
           updates.push({
@@ -123,10 +180,8 @@ const TrackingEvents = () => {
           updatesCount++;
         }
       }
-      // Check GO date
       const goStatus = statusMap[`${activity.id}_go`];
       if (goStatus && goStatus.status === 'pending') {
-        // If GO date midnight passed, update to done
         const midnight = getDateMidnight(activity.go_date);
         if (new Date() >= midnight) {
           updates.push({
@@ -141,7 +196,6 @@ const TrackingEvents = () => {
 
     if (updatesCount === 0) return;
 
-    // Perform bulk update of event_statuses
     try {
       const updatesPromises = updates.map(({ id, status, status_updated_at }) =>
         supabase
@@ -151,7 +205,6 @@ const TrackingEvents = () => {
       );
       await Promise.all(updatesPromises);
 
-      // Update local state to reflect changes
       const newStatusMap = { ...statusMap };
       updates.forEach(({ id, status }) => {
         const stKey = Object.keys(newStatusMap).find((k) => newStatusMap[k].id === id);
@@ -167,7 +220,6 @@ const TrackingEvents = () => {
     }
   };
 
-  // Handle manual status change for one event (prep or go)
   const handleStatusChange = async (activityId: string, eventType: 'prep' | 'go', newStatus: string) => {
     const statusKey = `${activityId}_${eventType}`;
     const statusRecord = eventStatuses[statusKey];
@@ -177,12 +229,11 @@ const TrackingEvents = () => {
     }
 
     if (statusRecord.status === newStatus) {
-      // No change
       return;
     }
 
     try {
-      setUpdatingStatuses(prev => ({ ...prev, [statusRecord.id]: true }));
+      setUpdatingStatuses((prev) => ({ ...prev, [statusRecord.id]: true }));
       const { error } = await supabase
         .from('event_statuses')
         .update({ status: newStatus, status_updated_at: new Date().toISOString() })
@@ -190,8 +241,7 @@ const TrackingEvents = () => {
 
       if (error) throw error;
 
-      // Update local state
-      setEventStatuses(prev => ({
+      setEventStatuses((prev) => ({
         ...prev,
         [statusKey]: { ...statusRecord, status: newStatus, status_updated_at: new Date().toISOString() },
       }));
@@ -201,7 +251,7 @@ const TrackingEvents = () => {
       console.error('Error updating status:', error);
       toast.error('Failed to update status');
     } finally {
-      setUpdatingStatuses(prev => ({ ...prev, [statusRecord.id]: false }));
+      setUpdatingStatuses((prev) => ({ ...prev, [statusRecord.id]: false }));
     }
   };
 
@@ -236,8 +286,12 @@ const TrackingEvents = () => {
     }
   };
 
-  if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  if (loading || initializingStatuses) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        Loading...
+      </div>
+    );
   }
 
   return (
@@ -265,8 +319,8 @@ const TrackingEvents = () => {
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold">Activity Tracking</h1>
             {activities.length > 0 && (
-              <Button 
-                variant="destructive" 
+              <Button
+                variant="destructive"
                 onClick={() => setShowDeleteConfirmation(true)}
                 className="flex items-center gap-2"
               >
@@ -279,8 +333,8 @@ const TrackingEvents = () => {
           {activities.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-500">No activities found. Import some activities from the Dashboard.</p>
-              <Button 
-                className="mt-4" 
+              <Button
+                className="mt-4"
                 onClick={() => navigate('/dashboard')}
               >
                 Go to Dashboard
@@ -389,4 +443,3 @@ const TrackingEvents = () => {
 };
 
 export default TrackingEvents;
-
