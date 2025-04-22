@@ -8,6 +8,7 @@ import Logo from '@/components/Logo';
 import CSVUpload from '@/components/CSVUpload';
 import CSVTable from '@/components/CSVTable';
 import GoogleCalendarImport from '@/components/GoogleCalendarImport';
+import PreferencesForm, { Preferences } from '@/components/PreferencesForm';
 import { parseCSV } from '@/utils/csvUtils';
 import { CSVRow } from '@/types/csv';
 
@@ -18,6 +19,15 @@ const Dashboard = () => {
   const [csvData, setCsvData] = useState<CSVRow[]>([]);
   const [hasUploadedFile, setHasUploadedFile] = useState(false);
   const [savingToDatabase, setSavingToDatabase] = useState(false);
+  const [showPreferences, setShowPreferences] = useState(false);
+  const [preferences, setPreferences] = useState<Preferences>({
+    excludeWeekends: true,
+    excludePublicHolidays: true,
+    blockedDates: [],
+    blockedMonths: []
+  });
+  const [filteredData, setFilteredData] = useState<CSVRow[]>([]);
+  const [dataFiltered, setDataFiltered] = useState(false);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -60,6 +70,7 @@ const Dashboard = () => {
       
       setCsvData(parsedData);
       setHasUploadedFile(true);
+      setShowPreferences(true); // Show preferences form after upload
       toast.success(`Successfully loaded ${parsedData.length} rows of data`);
       
       // Check for weekend or holiday dates
@@ -98,17 +109,31 @@ const Dashboard = () => {
   };
 
   const handleUpdateData = (newData: CSVRow[]) => {
-    setCsvData(newData);
+    if (dataFiltered) {
+      setFilteredData(newData);
+    } else {
+      setCsvData(newData);
+    }
   };
   
   const saveToDatabase = async () => {
-    if (csvData.length === 0) return;
+    if (filteredData.length === 0 && !dataFiltered) {
+      toast.error('Please apply preferences first');
+      return;
+    }
+    
+    const dataToSave = dataFiltered ? filteredData : csvData;
+    
+    if (dataToSave.length === 0) {
+      toast.error('No data to save');
+      return;
+    }
     
     try {
       setSavingToDatabase(true);
       
       // Check for any PREP dates after GO dates
-      const hasSequenceIssues = csvData.some(row => {
+      const hasSequenceIssues = dataToSave.some(row => {
         const prepParts = row.prepDate.split('/');
         const goParts = row.goDate.split('/');
         if (prepParts.length === 3 && goParts.length === 3) {
@@ -134,7 +159,7 @@ const Dashboard = () => {
       }
       
       // Format dates as YYYY-MM-DD for PostgreSQL
-      const formattedData = csvData.map(row => {
+      const formattedData = dataToSave.map(row => {
         const prepParts = row.prepDate.split('/');
         const goParts = row.goDate.split('/');
         
@@ -169,7 +194,7 @@ const Dashboard = () => {
       
       if (error) throw error;
       
-      toast.success(`Successfully saved ${csvData.length} activities to database`);
+      toast.success(`Successfully saved ${dataToSave.length} activities to database`);
       toast.info('You can now track these activities in the Tracking Events page');
       
     } catch (error: any) {
@@ -178,6 +203,93 @@ const Dashboard = () => {
     } finally {
       setSavingToDatabase(false);
     }
+  };
+
+  const handlePreferencesSubmit = (submittedPreferences: Preferences) => {
+    setPreferences(submittedPreferences);
+    setShowPreferences(false);
+    
+    // Here we would normally send data to an AI service to filter
+    // For now, we'll just simulate filtering with basic rules
+    filterDataBasedOnPreferences(csvData, submittedPreferences);
+  };
+
+  const filterDataBasedOnPreferences = (data: CSVRow[], prefs: Preferences) => {
+    // In a real implementation, this is where you'd call your AI service
+    // For now, we'll just do basic filtering
+    
+    toast.info('Processing data with your preferences...');
+    
+    // This is a placeholder for the AI filtering logic
+    // In reality, you'd send this to your AI service
+    const filtered = data.filter(row => {
+      // Parse dates
+      const prepDateParts = row.prepDate.split('/');
+      const goDateParts = row.goDate.split('/');
+      
+      if (prepDateParts.length !== 3 || goDateParts.length !== 3) return true;
+      
+      const prepDate = new Date(
+        parseInt(prepDateParts[2]),
+        parseInt(prepDateParts[1]) - 1,
+        parseInt(prepDateParts[0])
+      );
+      
+      const goDate = new Date(
+        parseInt(goDateParts[2]),
+        parseInt(goDateParts[1]) - 1,
+        parseInt(goDateParts[0])
+      );
+      
+      // Check weekend exclusion
+      if (prefs.excludeWeekends) {
+        const prepDay = prepDate.getDay();
+        const goDay = goDate.getDay();
+        if (prepDay === 0 || prepDay === 6 || goDay === 0 || goDay === 6) return false;
+      }
+      
+      // Simplified holiday check - in real life, use a holiday API
+      // Here we're just respecting the existing isHoliday flag if we want to exclude holidays
+      if (prefs.excludePublicHolidays && (row.isHoliday)) return false;
+      
+      // Check blocked dates
+      for (const blockedDate of prefs.blockedDates) {
+        if (
+          blockedDate.getDate() === prepDate.getDate() && 
+          blockedDate.getMonth() === prepDate.getMonth() &&
+          blockedDate.getFullYear() === prepDate.getFullYear()
+        ) return false;
+        
+        if (
+          blockedDate.getDate() === goDate.getDate() && 
+          blockedDate.getMonth() === goDate.getMonth() &&
+          blockedDate.getFullYear() === goDate.getFullYear()
+        ) return false;
+      }
+      
+      // Check blocked months
+      if (
+        prefs.blockedMonths.includes(prepDate.getMonth()) || 
+        prefs.blockedMonths.includes(goDate.getMonth())
+      ) return false;
+      
+      return true;
+    });
+    
+    setFilteredData(filtered);
+    setDataFiltered(true);
+    toast.success(`Filtered data: ${filtered.length} of ${data.length} activities match your preferences`);
+  };
+
+  const resetToOriginalData = () => {
+    setFilteredData([]);
+    setDataFiltered(false);
+    toast.info('Reverted to original data. You can set preferences again.');
+  };
+
+  const handleClosePreferences = () => {
+    setShowPreferences(false);
+    toast.info('Preferences canceled. You can set them later by clicking "Set Preferences"');
   };
 
   if (loading) {
@@ -215,11 +327,31 @@ const Dashboard = () => {
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-semibold">Activity Data</h2>
                 <div className="flex gap-2">
-                  <GoogleCalendarImport data={csvData} />
+                  {dataFiltered ? (
+                    <>
+                      <GoogleCalendarImport data={filteredData} />
+                      <Button 
+                        variant="outline" 
+                        onClick={resetToOriginalData}
+                      >
+                        Reset Filters
+                      </Button>
+                    </>
+                  ) : (
+                    <Button 
+                      onClick={() => setShowPreferences(true)}
+                      variant="outline"
+                    >
+                      Set Preferences
+                    </Button>
+                  )}
+                  
                   <Button 
                     variant="outline" 
                     onClick={() => {
                       setCsvData([]);
+                      setFilteredData([]);
+                      setDataFiltered(false);
                       setHasUploadedFile(false);
                     }}
                   >
@@ -227,15 +359,18 @@ const Dashboard = () => {
                   </Button>
                   <Button 
                     onClick={saveToDatabase}
-                    disabled={savingToDatabase}
+                    disabled={savingToDatabase || (!dataFiltered && csvData.length > 0)}
                   >
                     {savingToDatabase ? 'Saving...' : 'Save to Database'}
                   </Button>
                 </div>
               </div>
               
-              {csvData.length > 0 ? (
-                <CSVTable data={csvData} onUpdateData={handleUpdateData} />
+              {(dataFiltered ? filteredData : csvData).length > 0 ? (
+                <CSVTable 
+                  data={dataFiltered ? filteredData : csvData} 
+                  onUpdateData={handleUpdateData} 
+                />
               ) : (
                 <p className="text-center py-8 text-gray-500">No data available</p>
               )}
@@ -243,6 +378,12 @@ const Dashboard = () => {
           )}
         </div>
       </main>
+
+      <PreferencesForm 
+        isOpen={showPreferences}
+        onClose={handleClosePreferences}
+        onSubmit={handlePreferencesSubmit}
+      />
     </div>
   );
 };

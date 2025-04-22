@@ -99,6 +99,9 @@ const CSVUpload = ({ onFileLoaded }: CSVUploadProps) => {
       <p className="mt-2 text-xs text-gray-500">
         Required columns: Activity ID, Activity Name, Description, Strategy, PREP Date, GO Date
       </p>
+      <p className="mt-1 text-xs text-blue-600">
+        After upload, you'll be asked to set your scheduling preferences
+      </p>
     </div>
   );
 };
