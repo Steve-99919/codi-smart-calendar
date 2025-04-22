@@ -35,6 +35,7 @@ const Dashboard = () => {
   const [showTrackingSubscriptionDialog, setShowTrackingSubscriptionDialog] = useState(false);
   const [originalCsvData, setOriginalCsvData] = useState<CSVRow[]>([]);
   const [csvDataBeforeReschedule, setCsvDataBeforeReschedule] = useState<CSVRow[]>([]);
+  const [reschedulePerformed, setReschedulePerformed] = useState(false);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -258,19 +259,14 @@ const Dashboard = () => {
     
     try {
       setCsvDataBeforeReschedule(csvData);
-
       const allActivities = [...csvData];
-
       allActivities.sort((a, b) => {
         const prepDateA = a.prepDate.split('/').map(Number);
         const prepDateB = b.prepDate.split('/').map(Number);
-
         const dateA = new Date(prepDateA[2], prepDateA[1] - 1, prepDateA[0]);
         const dateB = new Date(prepDateB[2], prepDateB[1] - 1, prepDateB[0]);
-
         return dateA.getTime() - dateB.getTime();
       });
-
       const dateAdjustments: Map<string, number> = new Map();
 
       const rescheduled = allActivities.map(activity => {
@@ -326,7 +322,8 @@ const Dashboard = () => {
       setCsvData(rescheduled);
       setFilteredOutData([]);
       setDataFiltered(false);
-
+      
+      setReschedulePerformed(true);
       toast.success('Activities rescheduled successfully');
       toast.info('All activities now match your preferences');
 
@@ -373,6 +370,7 @@ const Dashboard = () => {
     setFilteredData([]);
     setFilteredOutData([]);
     setDataFiltered(false);
+    setReschedulePerformed(false);
     toast.success('Rescheduling undone. Data restored to previous state.');
   };
 
@@ -423,18 +421,22 @@ const Dashboard = () => {
                   {dataFiltered ? (
                     <>
                       <GoogleCalendarImport data={filteredData} />
+
                       <Button
                         variant="outline"
                         onClick={resetToOriginalData}
                       >
                         Reset Filters
                       </Button>
-                      <Button
-                        variant="outline"
-                        onClick={handleUndoPreferences}
-                      >
-                        Undo Reschedule
-                      </Button>
+
+                      {reschedulePerformed && (
+                        <Button
+                          variant="outline"
+                          onClick={handleUndoPreferences}
+                        >
+                          Undo Reschedule
+                        </Button>
+                      )}
                     </>
                   ) : (
                     <Button
@@ -453,6 +455,7 @@ const Dashboard = () => {
                       setFilteredOutData([]);
                       setDataFiltered(false);
                       setHasUploadedFile(false);
+                      setReschedulePerformed(false);
                     }}
                   >
                     Upload another file
