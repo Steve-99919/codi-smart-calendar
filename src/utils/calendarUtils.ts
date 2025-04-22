@@ -48,6 +48,12 @@ export const generateICS = (data: CSVRow[], calendarName: string): string => {
       'SEQUENCE:0',
       `CREATED:${formatDateForICS(new Date())}`,
       `DTSTAMP:${formatDateForICS(new Date())}`,
+      // Add 2-day reminder (P2D = Period of 2 Days)
+      'BEGIN:VALARM',
+      'ACTION:DISPLAY',
+      'DESCRIPTION:Reminder: PREP event in 2 days',
+      'TRIGGER:-P2D',
+      'END:VALARM',
       'END:VEVENT'
     ].join('\r\n') + '\r\n';
     
@@ -64,6 +70,12 @@ export const generateICS = (data: CSVRow[], calendarName: string): string => {
       'SEQUENCE:0',
       `CREATED:${formatDateForICS(new Date())}`,
       `DTSTAMP:${formatDateForICS(new Date())}`,
+      // Add 2-day reminder (P2D = Period of 2 Days)
+      'BEGIN:VALARM',
+      'ACTION:DISPLAY',
+      'DESCRIPTION:Reminder: GO event in 2 days',
+      'TRIGGER:-P2D',
+      'END:VALARM',
       'END:VEVENT'
     ].join('\r\n') + '\r\n';
   });

@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { CalendarPlus, AlertCircle } from 'lucide-react';
+import { CalendarPlus, AlertCircle, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { downloadICS } from '@/utils/calendarUtils';
 import { CSVRow } from '@/types/csv';
@@ -53,7 +53,7 @@ const GoogleCalendarImport = ({ data, disabled = false }: GoogleCalendarImportPr
     
     try {
       downloadICS(data, calendarName);
-      toast.success('Calendar file generated. Follow Google Calendar import instructions');
+      toast.success('Calendar file generated with 2-day reminders. Follow Google Calendar import instructions');
       setOpen(false);
     } catch (error) {
       console.error('Error generating calendar file:', error);
@@ -80,8 +80,15 @@ const GoogleCalendarImport = ({ data, disabled = false }: GoogleCalendarImportPr
           <h3 className="font-medium text-sm">Import to Google Calendar</h3>
           <p className="text-xs text-muted-foreground">
             Generate an ICS file to import into Google Calendar. Each activity will create 
-            separate events for PREP and GO dates ({totalEvents} events total).
+            separate events for PREP and GO dates ({totalEvents} events total) with 2-day reminders.
           </p>
+          
+          <Alert className="bg-blue-50 border-blue-200">
+            <Bell className="h-4 w-4 text-blue-500" />
+            <AlertDescription className="text-xs text-blue-700">
+              Each event includes a reminder 2 days before the scheduled date.
+            </AlertDescription>
+          </Alert>
           
           {hasConflicts && (
             <Alert variant="destructive">

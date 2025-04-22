@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, isBefore } from 'date-fns';
@@ -23,6 +22,7 @@ const TrackingEvents = () => {
   const [selectedEventType, setSelectedEventType] = useState<'prep' | 'go' | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<EventStatus>('done');
   const [notes, setNotes] = useState('');
+  const [autoUpdating, setAutoUpdating] = useState(false);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -78,13 +78,99 @@ const TrackingEvents = () => {
           ...activity,
           prep_status: activityStatuses.find(s => s.event_type === 'prep'),
           go_status: activityStatuses.find(s => s.event_type === 'go')
-        };
+        } as ActivityWithStatus;
       });
       
       setActivities(activitiesWithStatus);
+      
+      // Auto-update past events
+      await autoUpdatePastEvents(activitiesWithStatus);
     } catch (error) {
       console.error('Error loading activities:', error);
       toast.error('Failed to load activities');
+    }
+  };
+
+  const autoUpdatePastEvents = async (activitiesData: ActivityWithStatus[]) => {
+    setAutoUpdating(true);
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const activitiesToUpdate: { activityId: string, eventType: 'prep' | 'go' }[] = [];
+      
+      // Find activities with past dates that still have 'pending' status
+      activitiesData.forEach(activity => {
+        const prepDate = new Date(activity.prep_date);
+        if (isBefore(prepDate, today) && 
+            (!activity.prep_status || activity.prep_status.status === 'pending')) {
+          activitiesToUpdate.push({
+            activityId: activity.id,
+            eventType: 'prep'
+          });
+        }
+        
+        const goDate = new Date(activity.go_date);
+        if (isBefore(goDate, today) && 
+            (!activity.go_status || activity.go_status.status === 'pending')) {
+          activitiesToUpdate.push({
+            activityId: activity.id,
+            eventType: 'go'
+          });
+        }
+      });
+      
+      if (activitiesToUpdate.length === 0) {
+        return;
+      }
+      
+      const now = new Date().toISOString();
+      
+      // Process updates in batches
+      let updatedCount = 0;
+      for (const update of activitiesToUpdate) {
+        const eventStatus = activitiesData.find(a => a.id === update.activityId)
+          ?.[update.eventType === 'prep' ? 'prep_status' : 'go_status'];
+        
+        if (eventStatus) {
+          // Update existing status
+          const { error } = await supabase
+            .from('event_statuses')
+            .update({
+              status: 'done',
+              status_updated_at: now,
+              notes: 'Automatically marked as done because date has passed',
+              updated_at: now
+            })
+            .eq('id', eventStatus.id);
+            
+          if (!error) updatedCount++;
+        } else {
+          // Insert new status
+          const { error } = await supabase
+            .from('event_statuses')
+            .insert({
+              activity_id: update.activityId,
+              event_type: update.eventType,
+              status: 'done',
+              status_updated_at: now,
+              notes: 'Automatically marked as done because date has passed'
+            });
+            
+          if (!error) updatedCount++;
+        }
+      }
+      
+      if (updatedCount > 0) {
+        toast.success(`Automatically marked ${updatedCount} past events as done`);
+        // Reload activities to show updated statuses
+        await loadActivities();
+      }
+    } catch (error) {
+      console.error('Error auto-updating events:', error);
+      toast.error('Failed to auto-update past events');
+    } finally {
+      setAutoUpdating(false);
     }
   };
 
@@ -223,6 +309,12 @@ const TrackingEvents = () => {
         <div className="bg-white shadow rounded-lg p-6">
           <h1 className="text-2xl font-bold mb-6">Track Activity Events</h1>
 
+          {autoUpdating && (
+            <div className="mb-4 p-2 bg-blue-50 border border-blue-100 rounded text-blue-700 text-sm">
+              Automatically updating past events...
+            </div>
+          )}
+
           {activities.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="mx-auto h-12 w-12 text-gray-400" />
@@ -303,7 +395,7 @@ const TrackingEvents = () => {
               </CardContent>
               <CardFooter>
                 <p className="text-sm text-gray-500">
-                  Update the status of your events to keep track of progress
+                  Update the status of your events to keep track of progress. Past events are automatically marked as done.
                 </p>
               </CardFooter>
             </Card>
