@@ -12,6 +12,7 @@ import { parseCSV } from '@/utils/csvUtils';
 import { CSVRow } from '@/types/csv';
 import { getNextValidDate } from '@/utils/dateUtils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -24,14 +25,14 @@ const Dashboard = () => {
   const [preferences, setPreferences] = useState<Preferences>({
     excludeWeekends: true,
     excludePublicHolidays: true,
-    blockedDates: [],
-    blockedMonths: []
+    blockedDates: []
   });
   const [filteredData, setFilteredData] = useState<CSVRow[]>([]);
   const [filteredOutData, setFilteredOutData] = useState<CSVRow[]>([]);
   const [dataFiltered, setDataFiltered] = useState(false);
   const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
   const [reschedulingInProgress, setReschedulingInProgress] = useState(false);
+  const [showTrackingSubscriptionDialog, setShowTrackingSubscriptionDialog] = useState(false);
   
   useEffect(() => {
     const checkSession = async () => {
@@ -74,7 +75,7 @@ const Dashboard = () => {
       
       setCsvData(parsedData);
       setHasUploadedFile(true);
-      setShowPreferences(true); // Show preferences form after upload
+      setShowPreferences(true);
       toast.success(`Successfully loaded ${parsedData.length} rows of data`);
     } catch (error) {
       console.error('Error parsing CSV:', error);
@@ -90,12 +91,17 @@ const Dashboard = () => {
     }
   };
   
+  const handleTrackButtonClick = () => {
+    setShowTrackingSubscriptionDialog(true);
+  };
+  
+  const handleSubscribe = () => {
+    toast.success('Subscription process would start here. For now, we\'ll simulate success');
+    setShowTrackingSubscriptionDialog(false);
+    saveToDatabase();
+  };
+  
   const saveToDatabase = async () => {
-    if (filteredData.length === 0 && !dataFiltered) {
-      toast.error('Please apply preferences first');
-      return;
-    }
-    
     const dataToSave = dataFiltered ? filteredData : csvData;
     
     if (dataToSave.length === 0) {
@@ -106,7 +112,6 @@ const Dashboard = () => {
     try {
       setSavingToDatabase(true);
       
-      // Format dates as YYYY-MM-DD for PostgreSQL
       const formattedData = dataToSave.map(row => {
         const prepParts = row.prepDate.split('/');
         const goParts = row.goDate.split('/');
@@ -121,7 +126,6 @@ const Dashboard = () => {
         };
       });
       
-      // Get the current user's ID
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         toast.error('You must be logged in to save activities');
@@ -129,13 +133,11 @@ const Dashboard = () => {
         return;
       }
       
-      // Add user_id to each activity
       const activitiesWithUserId = formattedData.map(activity => ({
         ...activity,
         user_id: session.user.id
       }));
       
-      // Insert into database
       const { error } = await supabase
         .from('activities')
         .insert(activitiesWithUserId);
@@ -157,7 +159,6 @@ const Dashboard = () => {
     setPreferences(submittedPreferences);
     setShowPreferences(false);
     
-    // Filter data based on simplified preferences
     filterDataBasedOnPreferences(csvData, submittedPreferences);
   };
 
@@ -168,7 +169,6 @@ const Dashboard = () => {
     const filteredOut: CSVRow[] = [];
     
     data.forEach(row => {
-      // Parse dates
       const prepDateParts = row.prepDate.split('/');
       const goDateParts = row.goDate.split('/');
       
@@ -189,10 +189,8 @@ const Dashboard = () => {
         parseInt(goDateParts[0])
       );
       
-      // Check only weekends and holidays if selected
       let shouldFilter = false;
       
-      // Check weekend exclusion
       if (prefs.excludeWeekends) {
         const prepDay = prepDate.getDay();
         const goDay = goDate.getDay();
@@ -201,12 +199,10 @@ const Dashboard = () => {
         }
       }
       
-      // Simplified holiday check
       if (prefs.excludePublicHolidays && row.isHoliday) {
         shouldFilter = true;
       }
       
-      // Check blocked dates
       for (const blockedDate of prefs.blockedDates) {
         if (
           blockedDate.getDate() === prepDate.getDate() && 
@@ -258,10 +254,8 @@ const Dashboard = () => {
     setReschedulingInProgress(true);
     
     try {
-      // Create a copy of the original data to work with
       const allActivities = [...csvData];
       
-      // Sort activities by PREP date
       allActivities.sort((a, b) => {
         const prepDateA = a.prepDate.split('/').map(Number);
         const prepDateB = b.prepDate.split('/').map(Number);
@@ -272,37 +266,28 @@ const Dashboard = () => {
         return dateA.getTime() - dateB.getTime();
       });
       
-      // Map of original dates to new dates (for maintaining relative timing)
       const dateAdjustments: Map<string, number> = new Map();
       
-      // Process each filtered out activity
       const rescheduled = allActivities.map(activity => {
-        // Check if this activity is filtered out
         const isFilteredOut = filteredOutData.some(filtered => 
           filtered.activityId === activity.activityId
         );
         
         if (!isFilteredOut) {
-          // If not filtered out, check if any of its date predecessors were rescheduled
-          // and adjust this activity's dates accordingly
           let adjustedActivity = {...activity};
           
-          // Look for the closest predecessor date that needs adjustment
           for (const [originalDate, daysToAdd] of dateAdjustments.entries()) {
             if (originalDate === activity.prepDate) {
-              // Adjust PREP date and record the adjustment
               const newPrepDate = getNextValidDate(activity.prepDate, daysToAdd, preferences);
               const daysDiff = calculateDaysDifference(activity.prepDate, newPrepDate);
               
               adjustedActivity.prepDate = newPrepDate;
               
-              // Also adjust GO date by the same amount
               adjustedActivity.goDate = getNextValidDate(activity.goDate, daysDiff, preferences);
               break;
             }
             
             if (originalDate === activity.goDate) {
-              // Adjust GO date
               adjustedActivity.goDate = getNextValidDate(activity.goDate, daysToAdd, preferences);
               break;
             }
@@ -311,35 +296,28 @@ const Dashboard = () => {
           return adjustedActivity;
         }
         
-        // For filtered out activities, reschedule them one week forward
-        const daysToAdd = 7; // One week forward
+        const daysToAdd = 7;
         
-        // Find valid dates for both PREP and GO
         const newPrepDate = getNextValidDate(activity.prepDate, daysToAdd, preferences);
         
-        // Calculate the actual days difference (might be more than 7 if some days were invalid)
         const actualDaysDiff = calculateDaysDifference(activity.prepDate, newPrepDate);
         
-        // Apply the same shift to the GO date 
         const newGoDate = getNextValidDate(activity.goDate, actualDaysDiff, preferences);
         
-        // Record these date adjustments for future activities
         dateAdjustments.set(activity.prepDate, actualDaysDiff);
         dateAdjustments.set(activity.goDate, actualDaysDiff);
         
-        // Update weekend and holiday flags
         const updatedActivity = {
           ...activity,
           prepDate: newPrepDate,
           goDate: newGoDate,
-          isWeekend: false, // Will be recalculated by the UI when displayed
-          isHoliday: false, // Will be recalculated by the UI when displayed
+          isWeekend: false,
+          isHoliday: false,
         };
         
         return updatedActivity;
       });
       
-      // Update the data and reset filtered state
       setCsvData(rescheduled);
       setFilteredOutData([]);
       setDataFiltered(false);
@@ -457,10 +435,10 @@ const Dashboard = () => {
                     Upload another file
                   </Button>
                   <Button 
-                    onClick={saveToDatabase}
+                    onClick={handleTrackButtonClick}
                     disabled={savingToDatabase || (!dataFiltered && csvData.length > 0)}
                   >
-                    {savingToDatabase ? 'Saving...' : 'Save to Database'}
+                    Track My CSV
                   </Button>
                 </div>
               </div>
@@ -505,6 +483,42 @@ const Dashboard = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      <Dialog open={showTrackingSubscriptionDialog} onOpenChange={setShowTrackingSubscriptionDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Activity Tracking Subscription</DialogTitle>
+            <DialogDescription>
+              Track your activities with our Premium subscription.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <div className="rounded-lg border p-4 mb-4 bg-green-50">
+              <h3 className="text-lg font-medium mb-2">Premium Tracking Features</h3>
+              <ul className="list-disc pl-5 space-y-1 text-sm">
+                <li>Save unlimited activities to your tracking dashboard</li>
+                <li>View upcoming activities sorted by date</li>
+                <li>Receive email notifications for upcoming events</li>
+                <li>Export your tracking data anytime</li>
+              </ul>
+              <div className="mt-4 text-center">
+                <span className="text-2xl font-bold">$99</span>
+                <span className="text-sm font-medium"> AUD / month</span>
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTrackingSubscriptionDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubscribe}>
+              Subscribe Now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
