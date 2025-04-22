@@ -76,36 +76,6 @@ const Dashboard = () => {
       setHasUploadedFile(true);
       setShowPreferences(true); // Show preferences form after upload
       toast.success(`Successfully loaded ${parsedData.length} rows of data`);
-      
-      // Check for weekend or holiday dates
-      const hasIssues = parsedData.some(row => row.isWeekend || row.isHoliday);
-      if (hasIssues) {
-        toast.warning('Some dates fall on weekends or public holidays (highlighted in red)');
-      }
-      
-      // Check for PREP dates that are after GO dates
-      const hasSequenceIssues = parsedData.some(row => {
-        const prepParts = row.prepDate.split('/');
-        const goParts = row.goDate.split('/');
-        if (prepParts.length === 3 && goParts.length === 3) {
-          const prepDate = new Date(
-            parseInt(prepParts[2]), 
-            parseInt(prepParts[1]) - 1, 
-            parseInt(prepParts[0])
-          );
-          const goDate = new Date(
-            parseInt(goParts[2]), 
-            parseInt(goParts[1]) - 1, 
-            parseInt(goParts[0])
-          );
-          return prepDate > goDate;
-        }
-        return false;
-      });
-      
-      if (hasSequenceIssues) {
-        toast.warning('Some activities have PREP dates after GO dates (highlighted in amber)');
-      }
     } catch (error) {
       console.error('Error parsing CSV:', error);
       toast.error('Failed to parse CSV file');
@@ -135,32 +105,6 @@ const Dashboard = () => {
     
     try {
       setSavingToDatabase(true);
-      
-      // Check for any PREP dates after GO dates
-      const hasSequenceIssues = dataToSave.some(row => {
-        const prepParts = row.prepDate.split('/');
-        const goParts = row.goDate.split('/');
-        if (prepParts.length === 3 && goParts.length === 3) {
-          const prepDate = new Date(
-            parseInt(prepParts[2]), 
-            parseInt(prepParts[1]) - 1, 
-            parseInt(prepParts[0])
-          );
-          const goDate = new Date(
-            parseInt(goParts[2]), 
-            parseInt(goParts[1]) - 1, 
-            parseInt(goParts[0])
-          );
-          return prepDate > goDate;
-        }
-        return false;
-      });
-      
-      if (hasSequenceIssues) {
-        toast.error('Cannot save to database. Please correct PREP dates that occur after GO dates.');
-        setSavingToDatabase(false);
-        return;
-      }
       
       // Format dates as YYYY-MM-DD for PostgreSQL
       const formattedData = dataToSave.map(row => {
@@ -213,7 +157,7 @@ const Dashboard = () => {
     setPreferences(submittedPreferences);
     setShowPreferences(false);
     
-    // Filter data based on preferences
+    // Filter data based on simplified preferences
     filterDataBasedOnPreferences(csvData, submittedPreferences);
   };
 
@@ -245,7 +189,7 @@ const Dashboard = () => {
         parseInt(goDateParts[0])
       );
       
-      // Check various filters
+      // Check only weekends and holidays if selected
       let shouldFilter = false;
       
       // Check weekend exclusion
@@ -281,14 +225,6 @@ const Dashboard = () => {
           shouldFilter = true;
           break;
         }
-      }
-      
-      // Check blocked months
-      if (
-        prefs.blockedMonths.includes(prepDate.getMonth()) || 
-        prefs.blockedMonths.includes(goDate.getMonth())
-      ) {
-        shouldFilter = true;
       }
       
       if (shouldFilter) {

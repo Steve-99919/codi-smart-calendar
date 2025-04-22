@@ -17,7 +17,6 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Calendar as CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -25,7 +24,7 @@ export interface Preferences {
   excludeWeekends: boolean;
   excludePublicHolidays: boolean;
   blockedDates: Date[];
-  blockedMonths: number[];
+  blockedMonths: number[]; // We'll keep this in the interface for compatibility
 }
 
 interface PreferencesFormProps {
@@ -33,11 +32,6 @@ interface PreferencesFormProps {
   onClose: () => void;
   onSubmit: (preferences: Preferences) => void;
 }
-
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
-];
 
 const PreferencesForm = ({ isOpen, onClose, onSubmit }: PreferencesFormProps) => {
   const [preferences, setPreferences] = useState<Preferences>({
@@ -52,24 +46,6 @@ const PreferencesForm = ({ isOpen, onClose, onSubmit }: PreferencesFormProps) =>
   const handleSubmit = () => {
     toast.success('Preferences saved successfully');
     onSubmit(preferences);
-  };
-
-  const toggleMonth = (monthIndex: number) => {
-    setPreferences(prev => {
-      const newBlockedMonths = [...prev.blockedMonths];
-      
-      if (newBlockedMonths.includes(monthIndex)) {
-        return {
-          ...prev,
-          blockedMonths: newBlockedMonths.filter(m => m !== monthIndex)
-        };
-      } else {
-        return {
-          ...prev,
-          blockedMonths: [...newBlockedMonths, monthIndex]
-        };
-      }
-    });
   };
 
   return (
@@ -157,31 +133,6 @@ const PreferencesForm = ({ isOpen, onClose, onSubmit }: PreferencesFormProps) =>
                 </div>
               </PopoverContent>
             </Popover>
-          </div>
-
-          <div>
-            <Label className="mb-2 block">Blocked Months</Label>
-            <p className="text-sm text-muted-foreground mb-3">
-              Select months when you're unavailable
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              {MONTHS.map((month, index) => (
-                <Button
-                  key={month}
-                  type="button"
-                  variant={preferences.blockedMonths.includes(index) ? "default" : "outline"}
-                  className={cn(
-                    "h-auto py-1.5",
-                    preferences.blockedMonths.includes(index) 
-                      ? "bg-primary text-primary-foreground" 
-                      : ""
-                  )}
-                  onClick={() => toggleMonth(index)}
-                >
-                  {month}
-                </Button>
-              ))}
-            </div>
           </div>
         </div>
 
