@@ -33,7 +33,8 @@ const Dashboard = () => {
   const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
   const [reschedulingInProgress, setReschedulingInProgress] = useState(false);
   const [showTrackingSubscriptionDialog, setShowTrackingSubscriptionDialog] = useState(false);
-  
+  const [originalCsvData, setOriginalCsvData] = useState<CSVRow[]>([]);
+
   useEffect(() => {
     const checkSession = async () => {
       setLoading(true);
@@ -156,6 +157,7 @@ const Dashboard = () => {
   };
 
   const handlePreferencesSubmit = (submittedPreferences: Preferences) => {
+    setOriginalCsvData(csvData); // save current data before filtering
     setPreferences(submittedPreferences);
     setShowPreferences(false);
     
@@ -359,6 +361,24 @@ const Dashboard = () => {
     toast.info('Preferences canceled. You can set them later by clicking "Set Preferences"');
   };
 
+  const handleUndoPreferences = () => {
+    if (originalCsvData.length === 0) {
+      toast.info('No previous preferences to undo');
+      return;
+    }
+    setCsvData(originalCsvData);
+    setFilteredData([]);
+    setFilteredOutData([]);
+    setDataFiltered(false);
+    setPreferences({
+      excludeWeekends: true,
+      excludePublicHolidays: true,
+      blockedDates: [], 
+      blockedMonths: [],
+    });
+    toast.success('Preferences undone. Data restored to original state.');
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
@@ -411,6 +431,12 @@ const Dashboard = () => {
                         onClick={resetToOriginalData}
                       >
                         Reset Filters
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={handleUndoPreferences}
+                      >
+                        Undo Preferences
                       </Button>
                     </>
                   ) : (
