@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -300,7 +301,8 @@ const Dashboard = () => {
           return adjustedActivity;
         }
 
-        const daysToAdd = 7;
+        // Changed from 7 to 5 days pushing here
+        const daysToAdd = 5;
 
         const newPrepDate = getNextValidDate(activity.prepDate, daysToAdd, preferences);
 
@@ -411,7 +413,9 @@ const Dashboard = () => {
           ) : (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold">Activity Data</h2>
+                <h2 className="text-xl font-semibold">
+                  {/* Removed "Activity Data" text here as per user request */}
+                </h2>
                 <div className="flex gap-2">
                   {dataFiltered && filteredOutData.length > 0 && (
                     <Button
@@ -497,7 +501,7 @@ const Dashboard = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Reschedule Filtered Activities</AlertDialogTitle>
             <AlertDialogDescription>
-              This will reschedule {filteredOutData.length} filtered activities by pushing them one week forward.
+              This will reschedule {filteredOutData.length} filtered activities by pushing them five days forward.
               Any subsequent activities with conflicts will also be adjusted to maintain spacing.
               Do you want to continue?
             </AlertDialogDescription>
