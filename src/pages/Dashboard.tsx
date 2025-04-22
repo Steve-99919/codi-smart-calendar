@@ -80,6 +80,7 @@ const Dashboard = () => {
       setCsvData(parsedData);
       setHasUploadedFile(true);
       setShowPreferences(true);
+      setReschedulePerformed(false);
       toast.success(`Successfully loaded ${parsedData.length} rows of data`);
     } catch (error) {
       console.error('Error parsing CSV:', error);
@@ -160,11 +161,12 @@ const Dashboard = () => {
   };
 
   const handlePreferencesSubmit = (submittedPreferences: Preferences) => {
-    setOriginalCsvData(csvData); // save current data before filtering
+    setOriginalCsvData(csvData);
     setPreferences(submittedPreferences);
     setShowPreferences(false);
     
     filterDataBasedOnPreferences(csvData, submittedPreferences);
+    setReschedulePerformed(false);
   };
 
   const filterDataBasedOnPreferences = (data: CSVRow[], prefs: Preferences) => {
@@ -354,6 +356,7 @@ const Dashboard = () => {
     setFilteredData([]);
     setFilteredOutData([]);
     setDataFiltered(false);
+    setReschedulePerformed(false);
     toast.info('Reverted to original data. You can set preferences again.');
   };
 
