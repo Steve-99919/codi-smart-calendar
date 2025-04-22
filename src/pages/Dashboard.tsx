@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,8 @@ import GoogleCalendarImport from '@/components/GoogleCalendarImport';
 import PreferencesForm, { Preferences } from '@/components/PreferencesForm';
 import { parseCSV } from '@/utils/csvUtils';
 import { CSVRow } from '@/types/csv';
+import { getNextValidDate } from '@/utils/dateUtils';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -27,8 +28,11 @@ const Dashboard = () => {
     blockedMonths: []
   });
   const [filteredData, setFilteredData] = useState<CSVRow[]>([]);
+  const [filteredOutData, setFilteredOutData] = useState<CSVRow[]>([]);
   const [dataFiltered, setDataFiltered] = useState(false);
-
+  const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
+  const [reschedulingInProgress, setReschedulingInProgress] = useState(false);
+  
   useEffect(() => {
     const checkSession = async () => {
       setLoading(true);
@@ -209,25 +213,25 @@ const Dashboard = () => {
     setPreferences(submittedPreferences);
     setShowPreferences(false);
     
-    // Here we would normally send data to an AI service to filter
-    // For now, we'll just simulate filtering with basic rules
+    // Filter data based on preferences
     filterDataBasedOnPreferences(csvData, submittedPreferences);
   };
 
   const filterDataBasedOnPreferences = (data: CSVRow[], prefs: Preferences) => {
-    // In a real implementation, this is where you'd call your AI service
-    // For now, we'll just do basic filtering
-    
     toast.info('Processing data with your preferences...');
     
-    // This is a placeholder for the AI filtering logic
-    // In reality, you'd send this to your AI service
-    const filtered = data.filter(row => {
+    const filtered: CSVRow[] = [];
+    const filteredOut: CSVRow[] = [];
+    
+    data.forEach(row => {
       // Parse dates
       const prepDateParts = row.prepDate.split('/');
       const goDateParts = row.goDate.split('/');
       
-      if (prepDateParts.length !== 3 || goDateParts.length !== 3) return true;
+      if (prepDateParts.length !== 3 || goDateParts.length !== 3) {
+        filtered.push(row);
+        return;
+      }
       
       const prepDate = new Date(
         parseInt(prepDateParts[2]),
@@ -241,16 +245,22 @@ const Dashboard = () => {
         parseInt(goDateParts[0])
       );
       
+      // Check various filters
+      let shouldFilter = false;
+      
       // Check weekend exclusion
       if (prefs.excludeWeekends) {
         const prepDay = prepDate.getDay();
         const goDay = goDate.getDay();
-        if (prepDay === 0 || prepDay === 6 || goDay === 0 || goDay === 6) return false;
+        if (prepDay === 0 || prepDay === 6 || goDay === 0 || goDay === 6) {
+          shouldFilter = true;
+        }
       }
       
-      // Simplified holiday check - in real life, use a holiday API
-      // Here we're just respecting the existing isHoliday flag if we want to exclude holidays
-      if (prefs.excludePublicHolidays && (row.isHoliday)) return false;
+      // Simplified holiday check
+      if (prefs.excludePublicHolidays && row.isHoliday) {
+        shouldFilter = true;
+      }
       
       // Check blocked dates
       for (const blockedDate of prefs.blockedDates) {
@@ -258,31 +268,174 @@ const Dashboard = () => {
           blockedDate.getDate() === prepDate.getDate() && 
           blockedDate.getMonth() === prepDate.getMonth() &&
           blockedDate.getFullYear() === prepDate.getFullYear()
-        ) return false;
+        ) {
+          shouldFilter = true;
+          break;
+        }
         
         if (
           blockedDate.getDate() === goDate.getDate() && 
           blockedDate.getMonth() === goDate.getMonth() &&
           blockedDate.getFullYear() === goDate.getFullYear()
-        ) return false;
+        ) {
+          shouldFilter = true;
+          break;
+        }
       }
       
       // Check blocked months
       if (
         prefs.blockedMonths.includes(prepDate.getMonth()) || 
         prefs.blockedMonths.includes(goDate.getMonth())
-      ) return false;
+      ) {
+        shouldFilter = true;
+      }
       
-      return true;
+      if (shouldFilter) {
+        filteredOut.push(row);
+      } else {
+        filtered.push(row);
+      }
     });
     
     setFilteredData(filtered);
+    setFilteredOutData(filteredOut);
     setDataFiltered(true);
+    
     toast.success(`Filtered data: ${filtered.length} of ${data.length} activities match your preferences`);
+    
+    if (filteredOut.length > 0) {
+      toast.info(`${filteredOut.length} activities were filtered out. You can reschedule them if needed.`);
+    }
+  };
+
+  const handleRescheduleActivities = () => {
+    setShowRescheduleDialog(true);
+  };
+  
+  const rescheduleFilteredActivities = () => {
+    if (filteredOutData.length === 0) {
+      toast.info('No activities to reschedule');
+      return;
+    }
+    
+    setReschedulingInProgress(true);
+    
+    try {
+      // Create a copy of the original data to work with
+      const allActivities = [...csvData];
+      
+      // Sort activities by PREP date
+      allActivities.sort((a, b) => {
+        const prepDateA = a.prepDate.split('/').map(Number);
+        const prepDateB = b.prepDate.split('/').map(Number);
+        
+        const dateA = new Date(prepDateA[2], prepDateA[1] - 1, prepDateA[0]);
+        const dateB = new Date(prepDateB[2], prepDateB[1] - 1, prepDateB[0]);
+        
+        return dateA.getTime() - dateB.getTime();
+      });
+      
+      // Map of original dates to new dates (for maintaining relative timing)
+      const dateAdjustments: Map<string, number> = new Map();
+      
+      // Process each filtered out activity
+      const rescheduled = allActivities.map(activity => {
+        // Check if this activity is filtered out
+        const isFilteredOut = filteredOutData.some(filtered => 
+          filtered.activityId === activity.activityId
+        );
+        
+        if (!isFilteredOut) {
+          // If not filtered out, check if any of its date predecessors were rescheduled
+          // and adjust this activity's dates accordingly
+          let adjustedActivity = {...activity};
+          
+          // Look for the closest predecessor date that needs adjustment
+          for (const [originalDate, daysToAdd] of dateAdjustments.entries()) {
+            if (originalDate === activity.prepDate) {
+              // Adjust PREP date and record the adjustment
+              const newPrepDate = getNextValidDate(activity.prepDate, daysToAdd, preferences);
+              const daysDiff = calculateDaysDifference(activity.prepDate, newPrepDate);
+              
+              adjustedActivity.prepDate = newPrepDate;
+              
+              // Also adjust GO date by the same amount
+              adjustedActivity.goDate = getNextValidDate(activity.goDate, daysDiff, preferences);
+              break;
+            }
+            
+            if (originalDate === activity.goDate) {
+              // Adjust GO date
+              adjustedActivity.goDate = getNextValidDate(activity.goDate, daysToAdd, preferences);
+              break;
+            }
+          }
+          
+          return adjustedActivity;
+        }
+        
+        // For filtered out activities, reschedule them one week forward
+        const daysToAdd = 7; // One week forward
+        
+        // Find valid dates for both PREP and GO
+        const newPrepDate = getNextValidDate(activity.prepDate, daysToAdd, preferences);
+        
+        // Calculate the actual days difference (might be more than 7 if some days were invalid)
+        const actualDaysDiff = calculateDaysDifference(activity.prepDate, newPrepDate);
+        
+        // Apply the same shift to the GO date 
+        const newGoDate = getNextValidDate(activity.goDate, actualDaysDiff, preferences);
+        
+        // Record these date adjustments for future activities
+        dateAdjustments.set(activity.prepDate, actualDaysDiff);
+        dateAdjustments.set(activity.goDate, actualDaysDiff);
+        
+        // Update weekend and holiday flags
+        const updatedActivity = {
+          ...activity,
+          prepDate: newPrepDate,
+          goDate: newGoDate,
+          isWeekend: false, // Will be recalculated by the UI when displayed
+          isHoliday: false, // Will be recalculated by the UI when displayed
+        };
+        
+        return updatedActivity;
+      });
+      
+      // Update the data and reset filtered state
+      setCsvData(rescheduled);
+      setFilteredOutData([]);
+      setDataFiltered(false);
+      
+      toast.success('Activities rescheduled successfully');
+      toast.info('All activities now match your preferences');
+      
+    } catch (error) {
+      console.error('Error during rescheduling:', error);
+      toast.error('Failed to reschedule activities');
+    } finally {
+      setReschedulingInProgress(false);
+      setShowRescheduleDialog(false);
+    }
+  };
+  
+  const calculateDaysDifference = (startDate: string, endDate: string): number => {
+    const [startDay, startMonth, startYear] = startDate.split('/').map(Number);
+    const [endDay, endMonth, endYear] = endDate.split('/').map(Number);
+    
+    const date1 = new Date(startYear, startMonth - 1, startDay);
+    const date2 = new Date(endYear, endMonth - 1, endDay);
+    
+    const diffTime = Math.abs(date2.getTime() - date1.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays;
   };
 
   const resetToOriginalData = () => {
     setFilteredData([]);
+    setFilteredOutData([]);
     setDataFiltered(false);
     toast.info('Reverted to original data. You can set preferences again.');
   };
@@ -327,6 +480,15 @@ const Dashboard = () => {
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-semibold">Activity Data</h2>
                 <div className="flex gap-2">
+                  {dataFiltered && filteredOutData.length > 0 && (
+                    <Button 
+                      variant="outline"
+                      onClick={handleRescheduleActivities}
+                    >
+                      Reschedule Filtered Activities
+                    </Button>
+                  )}
+                  
                   {dataFiltered ? (
                     <>
                       <GoogleCalendarImport data={filteredData} />
@@ -351,6 +513,7 @@ const Dashboard = () => {
                     onClick={() => {
                       setCsvData([]);
                       setFilteredData([]);
+                      setFilteredOutData([]);
                       setDataFiltered(false);
                       setHasUploadedFile(false);
                     }}
@@ -384,6 +547,28 @@ const Dashboard = () => {
         onClose={handleClosePreferences}
         onSubmit={handlePreferencesSubmit}
       />
+      
+      <AlertDialog open={showRescheduleDialog} onOpenChange={setShowRescheduleDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reschedule Filtered Activities</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will reschedule {filteredOutData.length} filtered activities by pushing them one week forward.
+              Any subsequent activities with conflicts will also be adjusted to maintain spacing.
+              Do you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={rescheduleFilteredActivities}
+              disabled={reschedulingInProgress}
+            >
+              {reschedulingInProgress ? 'Rescheduling...' : 'Reschedule'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
