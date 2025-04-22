@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
@@ -8,11 +9,18 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Trash2 } from 'lucide-react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
+// Define color classes for statuses
 const STATUS_OPTIONS = [
-  { value: 'pending', label: 'Pending' },
-  { value: 'done', label: 'Done' },
-  { value: 'delayed', label: 'Delayed' },
+  { value: 'pending', label: 'Pending', colorClass: 'text-orange-500' },
+  { value: 'done', label: 'Done', colorClass: 'text-green-500' },
+  { value: 'delayed', label: 'Delayed', colorClass: 'text-red-500' },
 ];
+
+// Helper function returns color class for the current status value
+const getStatusColorClass = (status: string) => {
+  const found = STATUS_OPTIONS.find((opt) => opt.value === status);
+  return found ? found.colorClass : '';
+};
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '';
@@ -36,9 +44,9 @@ const TrackingEvents = () => {
   const [deleting, setDeleting] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [activities, setActivities] = useState<any[]>([]);
-  const [eventStatuses, setEventStatuses] = useState<Record<string, any>>({}); // Map event_status key to status info
+  const [eventStatuses, setEventStatuses] = useState<Record<string, any>>({});
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-  const [updatingStatuses, setUpdatingStatuses] = useState<{ [key: string]: boolean }>({}); // track loading for status updates per event_status id
+  const [updatingStatuses, setUpdatingStatuses] = useState<{ [key: string]: boolean }>({});
   const [initializingStatuses, setInitializingStatuses] = useState(false);
 
   useEffect(() => {
@@ -92,7 +100,6 @@ const TrackingEvents = () => {
 
     fetchData();
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
   const initializeMissingStatuses = async (userId: string, activitiesData: any[], statusMap: Record<string, any>) => {
@@ -367,45 +374,49 @@ const TrackingEvents = () => {
                         <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{activity.description}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{activity.strategy}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(activity.prep_date)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
                           {prepStatus ? (
                             <Select
                               value={prepStatus.status}
                               onValueChange={(value) => handleStatusChange(activity.id, 'prep', value)}
                               disabled={updatingStatuses[prepStatus.id]}
                             >
-                              <SelectTrigger className="w-28 h-8 text-sm">
+                              <SelectTrigger className={`w-28 h-8 text-sm ${getStatusColorClass(prepStatus.status)}`}>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
                                 {STATUS_OPTIONS.map(opt => (
-                                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                  <SelectItem key={opt.value} value={opt.value} className={opt.colorClass}>
+                                    {opt.label}
+                                  </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
                           ) : (
-                            <span className="text-gray-400 italic">No status</span>
+                            <span className="text-orange-500 italic">Pending</span>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(activity.go_date)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
                           {goStatus ? (
                             <Select
                               value={goStatus.status}
                               onValueChange={(value) => handleStatusChange(activity.id, 'go', value)}
                               disabled={updatingStatuses[goStatus.id]}
                             >
-                              <SelectTrigger className="w-28 h-8 text-sm">
+                              <SelectTrigger className={`w-28 h-8 text-sm ${getStatusColorClass(goStatus.status)}`}>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
                                 {STATUS_OPTIONS.map(opt => (
-                                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                  <SelectItem key={opt.value} value={opt.value} className={opt.colorClass}>
+                                    {opt.label}
+                                  </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
                           ) : (
-                            <span className="text-gray-400 italic">No status</span>
+                            <span className="text-orange-500 italic">Pending</span>
                           )}
                         </td>
                       </tr>
