@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -263,66 +262,79 @@ const Dashboard = () => {
     
     try {
       setCsvDataBeforeReschedule(csvData);
-      const allActivities = [...csvData];
-      allActivities.sort((a, b) => {
-        const prepDateA = a.prepDate.split('/').map(Number);
-        const prepDateB = b.prepDate.split('/').map(Number);
-        const dateA = new Date(prepDateA[2], prepDateA[1] - 1, prepDateA[0]);
-        const dateB = new Date(prepDateB[2], prepDateB[1] - 1, prepDateB[0]);
+
+      const allActivitiesSorted = [...csvData].sort((a, b) => {
+        const [dayA, monthA, yearA] = a.prepDate.split('/').map(Number);
+        const [dayB, monthB, yearB] = b.prepDate.split('/').map(Number);
+        const dateA = new Date(yearA, monthA - 1, dayA);
+        const dateB = new Date(yearB, monthB - 1, dayB);
         return dateA.getTime() - dateB.getTime();
       });
-      const dateAdjustments: Map<string, number> = new Map();
 
-      const rescheduled = allActivities.map(activity => {
-        const isFilteredOut = filteredOutData.some(filtered =>
-          filtered.activityId === activity.activityId
-        );
+      let totalDaysPushed = 0;
+      let lastRescheduledIndex = -1;
 
-        if (!isFilteredOut) {
-          let adjustedActivity = { ...activity };
+      const filteredOutIndexes = filteredOutData.map(filtered =>
+        allActivitiesSorted.findIndex(act => act.activityId === filtered.activityId)
+      ).sort((a, b) => a - b);
 
-          for (const [originalDate, daysToAdd] of dateAdjustments.entries()) {
-            if (originalDate === activity.prepDate) {
-              const newPrepDate = getNextValidDate(activity.prepDate, daysToAdd, preferences);
-              const daysDiff = calculateDaysDifference(activity.prepDate, newPrepDate);
+      const updatedActivityMap = new Map<string, typeof csvData[0]>();
 
-              adjustedActivity.prepDate = newPrepDate;
+      const DAYS_TO_PUSH = 5;
 
-              adjustedActivity.goDate = getNextValidDate(activity.goDate, daysDiff, preferences);
-              break;
-            }
+      filteredOutIndexes.forEach((idx, i) => {
+        const activity = allActivitiesSorted[idx];
+        if (!activity) return;
 
-            if (originalDate === activity.goDate) {
-              adjustedActivity.goDate = getNextValidDate(activity.goDate, daysToAdd, preferences);
-              break;
-            }
-          }
-
-          return adjustedActivity;
-        }
-
-        // Changed from 7 to 5 days pushing here
-        const daysToAdd = 5;
+        const daysToAdd = totalDaysPushed + DAYS_TO_PUSH;
 
         const newPrepDate = getNextValidDate(activity.prepDate, daysToAdd, preferences);
+        const daysDiff = calculateDaysDifference(activity.prepDate, newPrepDate);
+        const newGoDate = getNextValidDate(activity.goDate, daysDiff, preferences);
 
-        const actualDaysDiff = calculateDaysDifference(activity.prepDate, newPrepDate);
-
-        const newGoDate = getNextValidDate(activity.goDate, actualDaysDiff, preferences);
-
-        dateAdjustments.set(activity.prepDate, actualDaysDiff);
-        dateAdjustments.set(activity.goDate, actualDaysDiff);
-
-        const updatedActivity = {
+        updatedActivityMap.set(activity.activityId, {
           ...activity,
           prepDate: newPrepDate,
           goDate: newGoDate,
           isWeekend: false,
           isHoliday: false,
-        };
+        });
 
-        return updatedActivity;
+        totalDaysPushed += daysDiff;
+        lastRescheduledIndex = idx;
       });
+
+      for (let i = lastRescheduledIndex + 1; i < allActivitiesSorted.length; i++) {
+        const activity = allActivitiesSorted[i];
+        if (!activity) continue;
+
+        if (updatedActivityMap.has(activity.activityId)) continue;
+
+        const newPrepDate = getNextValidDate(activity.prepDate, totalDaysPushed, preferences);
+        const daysDiff = calculateDaysDifference(activity.prepDate, newPrepDate);
+        const newGoDate = getNextValidDate(activity.goDate, daysDiff, preferences);
+
+        updatedActivityMap.set(activity.activityId, {
+          ...activity,
+          prepDate: newPrepDate,
+          goDate: newGoDate,
+          isWeekend: false,
+          isHoliday: false,
+        });
+      }
+
+      for (let i = 0; i <= lastRescheduledIndex; i++) {
+        const activity = allActivitiesSorted[i];
+        if (!activity) continue;
+
+        if (!updatedActivityMap.has(activity.activityId)) {
+          updatedActivityMap.set(activity.activityId, activity);
+        }
+      }
+
+      const rescheduled = allActivitiesSorted.map(activity =>
+        updatedActivityMap.get(activity.activityId) || activity
+      );
 
       setCsvData(rescheduled);
       setFilteredOutData([]);
