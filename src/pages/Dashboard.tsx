@@ -34,6 +34,7 @@ const Dashboard = () => {
   const [reschedulingInProgress, setReschedulingInProgress] = useState(false);
   const [showTrackingSubscriptionDialog, setShowTrackingSubscriptionDialog] = useState(false);
   const [originalCsvData, setOriginalCsvData] = useState<CSVRow[]>([]);
+  const [csvDataBeforeReschedule, setCsvDataBeforeReschedule] = useState<CSVRow[]>([]);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -256,59 +257,61 @@ const Dashboard = () => {
     setReschedulingInProgress(true);
     
     try {
+      setCsvDataBeforeReschedule(csvData);
+
       const allActivities = [...csvData];
-      
+
       allActivities.sort((a, b) => {
         const prepDateA = a.prepDate.split('/').map(Number);
         const prepDateB = b.prepDate.split('/').map(Number);
-        
+
         const dateA = new Date(prepDateA[2], prepDateA[1] - 1, prepDateA[0]);
         const dateB = new Date(prepDateB[2], prepDateB[1] - 1, prepDateB[0]);
-        
+
         return dateA.getTime() - dateB.getTime();
       });
-      
+
       const dateAdjustments: Map<string, number> = new Map();
-      
+
       const rescheduled = allActivities.map(activity => {
-        const isFilteredOut = filteredOutData.some(filtered => 
+        const isFilteredOut = filteredOutData.some(filtered =>
           filtered.activityId === activity.activityId
         );
-        
+
         if (!isFilteredOut) {
-          let adjustedActivity = {...activity};
-          
+          let adjustedActivity = { ...activity };
+
           for (const [originalDate, daysToAdd] of dateAdjustments.entries()) {
             if (originalDate === activity.prepDate) {
               const newPrepDate = getNextValidDate(activity.prepDate, daysToAdd, preferences);
               const daysDiff = calculateDaysDifference(activity.prepDate, newPrepDate);
-              
+
               adjustedActivity.prepDate = newPrepDate;
-              
+
               adjustedActivity.goDate = getNextValidDate(activity.goDate, daysDiff, preferences);
               break;
             }
-            
+
             if (originalDate === activity.goDate) {
               adjustedActivity.goDate = getNextValidDate(activity.goDate, daysToAdd, preferences);
               break;
             }
           }
-          
+
           return adjustedActivity;
         }
-        
+
         const daysToAdd = 7;
-        
+
         const newPrepDate = getNextValidDate(activity.prepDate, daysToAdd, preferences);
-        
+
         const actualDaysDiff = calculateDaysDifference(activity.prepDate, newPrepDate);
-        
+
         const newGoDate = getNextValidDate(activity.goDate, actualDaysDiff, preferences);
-        
+
         dateAdjustments.set(activity.prepDate, actualDaysDiff);
         dateAdjustments.set(activity.goDate, actualDaysDiff);
-        
+
         const updatedActivity = {
           ...activity,
           prepDate: newPrepDate,
@@ -316,17 +319,17 @@ const Dashboard = () => {
           isWeekend: false,
           isHoliday: false,
         };
-        
+
         return updatedActivity;
       });
-      
+
       setCsvData(rescheduled);
       setFilteredOutData([]);
       setDataFiltered(false);
-      
+
       toast.success('Activities rescheduled successfully');
       toast.info('All activities now match your preferences');
-      
+
     } catch (error) {
       console.error('Error during rescheduling:', error);
       toast.error('Failed to reschedule activities');
@@ -335,7 +338,7 @@ const Dashboard = () => {
       setShowRescheduleDialog(false);
     }
   };
-  
+
   const calculateDaysDifference = (startDate: string, endDate: string): number => {
     const [startDay, startMonth, startYear] = startDate.split('/').map(Number);
     const [endDay, endMonth, endYear] = endDate.split('/').map(Number);
@@ -362,21 +365,15 @@ const Dashboard = () => {
   };
 
   const handleUndoPreferences = () => {
-    if (originalCsvData.length === 0) {
-      toast.info('No previous preferences to undo');
+    if (csvDataBeforeReschedule.length === 0) {
+      toast.info('No rescheduling to undo');
       return;
     }
-    setCsvData(originalCsvData);
+    setCsvData(csvDataBeforeReschedule);
     setFilteredData([]);
     setFilteredOutData([]);
     setDataFiltered(false);
-    setPreferences({
-      excludeWeekends: true,
-      excludePublicHolidays: true,
-      blockedDates: [], 
-      blockedMonths: [],
-    });
-    toast.success('Preferences undone. Data restored to original state.');
+    toast.success('Rescheduling undone. Data restored to previous state.');
   };
 
   if (loading) {
@@ -415,19 +412,19 @@ const Dashboard = () => {
                 <h2 className="text-xl font-semibold">Activity Data</h2>
                 <div className="flex gap-2">
                   {dataFiltered && filteredOutData.length > 0 && (
-                    <Button 
+                    <Button
                       variant="outline"
                       onClick={handleRescheduleActivities}
                     >
                       Reschedule Filtered Activities
                     </Button>
                   )}
-                  
+
                   {dataFiltered ? (
                     <>
                       <GoogleCalendarImport data={filteredData} />
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         onClick={resetToOriginalData}
                       >
                         Reset Filters
@@ -436,20 +433,20 @@ const Dashboard = () => {
                         variant="outline"
                         onClick={handleUndoPreferences}
                       >
-                        Undo Preferences
+                        Undo Reschedule
                       </Button>
                     </>
                   ) : (
-                    <Button 
+                    <Button
                       onClick={() => setShowPreferences(true)}
                       variant="outline"
                     >
                       Set Preferences
                     </Button>
                   )}
-                  
-                  <Button 
-                    variant="outline" 
+
+                  <Button
+                    variant="outline"
                     onClick={() => {
                       setCsvData([]);
                       setFilteredData([]);
@@ -460,7 +457,7 @@ const Dashboard = () => {
                   >
                     Upload another file
                   </Button>
-                  <Button 
+                  <Button
                     onClick={handleTrackButtonClick}
                     disabled={savingToDatabase || (!dataFiltered && csvData.length > 0)}
                   >
@@ -470,9 +467,9 @@ const Dashboard = () => {
               </div>
               
               {(dataFiltered ? filteredData : csvData).length > 0 ? (
-                <CSVTable 
-                  data={dataFiltered ? filteredData : csvData} 
-                  onUpdateData={handleUpdateData} 
+                <CSVTable
+                  data={dataFiltered ? filteredData : csvData}
+                  onUpdateData={handleUpdateData}
                 />
               ) : (
                 <p className="text-center py-8 text-gray-500">No data available</p>
