@@ -1,7 +1,4 @@
 
-// We need to modify the TrackingEvents.tsx file to add a delete button
-// Since the file is read-only, we'll create a new component that adds this functionality
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
@@ -9,9 +6,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/Logo';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react'; // Fixed import casing
 
-// Original TrackingEvents component with added delete functionality
 const TrackingEvents = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -126,7 +122,7 @@ const TrackingEvents = () => {
                 onClick={() => setShowDeleteConfirmation(true)}
                 className="flex items-center gap-2"
               >
-                <trash2 className="h-4 w-4" />
+                <Trash2 className="h-4 w-4" />
                 Delete All Activities
               </Button>
             )}
@@ -198,3 +194,4 @@ const TrackingEvents = () => {
 };
 
 export default TrackingEvents;
+

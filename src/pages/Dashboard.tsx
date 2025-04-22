@@ -25,7 +25,8 @@ const Dashboard = () => {
   const [preferences, setPreferences] = useState<Preferences>({
     excludeWeekends: true,
     excludePublicHolidays: true,
-    blockedDates: []
+    blockedDates: [],
+    blockedMonths: []
   });
   const [filteredData, setFilteredData] = useState<CSVRow[]>([]);
   const [filteredOutData, setFilteredOutData] = useState<CSVRow[]>([]);
