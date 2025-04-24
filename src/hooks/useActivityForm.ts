@@ -30,6 +30,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     isWeekend: false,
     isHoliday: false
   });
+  const [isProcessingActivity, setIsProcessingActivity] = useState(false);
 
   const parseActivityId = (id: string) => {
     const match = id.match(/([A-Za-z]+)(\d+)/);
@@ -50,10 +51,14 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
   const handlePrefixChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newPrefix = e.target.value.replace(/[^A-Za-z]/g, '');
     setActivityIdPrefix(newPrefix);
-    const nextNumber = getNextNumber(newPrefix);
+    updateActivityId(newPrefix);
+  };
+
+  const updateActivityId = (prefix: string) => {
+    const nextNumber = getNextNumber(prefix);
     setNewActivity(prev => ({
       ...prev,
-      activityId: `${newPrefix}${nextNumber}`
+      activityId: `${prefix}${nextNumber}`
     }));
   };
 
@@ -78,6 +83,13 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
   };
 
   const handleOpenAddActivity = () => {
+    // Initialize activityId when opening the form
+    const nextId = `${activityIdPrefix}${getNextNumber(activityIdPrefix)}`;
+    setNewActivity(prev => ({
+      ...prev,
+      activityId: nextId
+    }));
+    
     setShowPreferenceDialog(true);
   };
 
@@ -88,7 +100,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    if (name !== 'activityId') {
+    if (name !== 'activityIdPrefix') {
       setNewActivity({
         ...newActivity,
         [name]: value
@@ -97,10 +109,19 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
   };
 
   const validateForm = () => {
-    if (!newActivity.activityId || !newActivity.activityName || 
+    if (!newActivity.activityName || 
         !newActivity.prepDate || !newActivity.goDate) {
       toast.error("Please fill in all required fields");
       return false;
+    }
+
+    // Ensure activityId is set
+    if (!newActivity.activityId) {
+      const nextId = `${activityIdPrefix}${getNextNumber(activityIdPrefix)}`;
+      setNewActivity(prev => ({
+        ...prev,
+        activityId: nextId
+      }));
     }
 
     if (!isValidDateFormat(newActivity.prepDate) || !isValidDateFormat(newActivity.goDate)) {
@@ -152,14 +173,36 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
   };
 
   const submitActivity = () => {
-    const activityToAdd = {
-      ...newActivity,
-      isWeekend: isWeekend(newActivity.prepDate) || isWeekend(newActivity.goDate),
-      isHoliday: isPublicHoliday(newActivity.prepDate) || isPublicHoliday(newActivity.goDate)
-    };
+    // Prevent multiple submissions
+    if (isProcessingActivity) return;
     
-    onAddActivity(activityToAdd);
-    resetForm();
+    setIsProcessingActivity(true);
+    
+    try {
+      // Ensure activityId is set before submitting
+      if (!newActivity.activityId) {
+        const nextId = `${activityIdPrefix}${getNextNumber(activityIdPrefix)}`;
+        newActivity.activityId = nextId;
+      }
+      
+      const activityToAdd = {
+        ...newActivity,
+        isWeekend: isWeekend(newActivity.prepDate) || isWeekend(newActivity.goDate),
+        isHoliday: isPublicHoliday(newActivity.prepDate) || isPublicHoliday(newActivity.goDate)
+      };
+      
+      onAddActivity(activityToAdd);
+      resetForm();
+      
+      // Add a small delay to ensure UI updates properly
+      setTimeout(() => {
+        setIsProcessingActivity(false);
+      }, 300);
+    } catch (error) {
+      console.error('Error submitting activity:', error);
+      setIsProcessingActivity(false);
+      toast.error("An error occurred while adding the activity");
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -171,6 +214,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
 
   const handleContinueAnyway = () => {
     setShowConflictAlert(false);
+    // Add delay to ensure the conflict alert is fully closed before submitting
     setTimeout(() => {
       submitActivity();
     }, 300);

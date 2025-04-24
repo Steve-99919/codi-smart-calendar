@@ -39,6 +39,9 @@ export const ActivityFormDialog = ({
   handleInputChange,
   handleSubmit
 }: ActivityFormDialogProps) => {
+  // Calculate the next ID to display
+  const nextId = `${activityIdPrefix}${getNextNumber(activityIdPrefix)}`;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
@@ -61,8 +64,14 @@ export const ActivityFormDialog = ({
                 className="w-24"
               />
               <div className="text-sm text-gray-500">
-                Next ID will be: {activityIdPrefix}{getNextNumber(activityIdPrefix)}
+                Next ID will be: {nextId}
               </div>
+              
+              <input 
+                type="hidden" 
+                name="activityId" 
+                value={nextId} 
+              />
             </div>
             
             <div className="space-y-2">

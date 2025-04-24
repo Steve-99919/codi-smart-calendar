@@ -1,5 +1,6 @@
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useEffect, useState } from "react";
 
 interface ConflictAlertDialogProps {
   open: boolean;
@@ -14,6 +15,40 @@ export const ConflictAlertDialog = ({
   message,
   onContinue
 }: ConflictAlertDialogProps) => {
+  const [processingAction, setProcessingAction] = useState(false);
+  
+  // Reset processing state when dialog opens/closes
+  useEffect(() => {
+    if (!open) {
+      setProcessingAction(false);
+    }
+  }, [open]);
+
+  const handleContinue = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (processingAction) return;
+    
+    setProcessingAction(true);
+    onOpenChange(false);
+    
+    // Allow time for the dialog to close before continuing
+    setTimeout(() => {
+      onContinue();
+    }, 100);
+  };
+  
+  const handleCancel = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (processingAction) return;
+    
+    setProcessingAction(true);
+    onOpenChange(false);
+  };
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -24,16 +59,10 @@ export const ConflictAlertDialog = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={(e) => {
-            e.stopPropagation();
-            onOpenChange(false);
-          }}>
+          <AlertDialogCancel onClick={handleCancel} disabled={processingAction}>
             Go Back
           </AlertDialogCancel>
-          <AlertDialogAction onClick={(e) => {
-            e.stopPropagation();
-            onContinue();
-          }}>
+          <AlertDialogAction onClick={handleContinue} disabled={processingAction}>
             Continue Anyway
           </AlertDialogAction>
         </AlertDialogFooter>
