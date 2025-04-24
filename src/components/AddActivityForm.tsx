@@ -39,6 +39,7 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
   const [selectedPrepDate, setSelectedPrepDate] = useState<Date>();
   const [selectedGoDate, setSelectedGoDate] = useState<Date>();
   const [activityIdPrefix, setActivityIdPrefix] = useState<string>('A');
+  const [pendingActivity, setPendingActivity] = useState<CSVRow | null>(null);
   const [newActivity, setNewActivity] = useState<CSVRow>({
     activityId: "",
     activityName: "",
@@ -184,28 +185,29 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
     e.preventDefault();
     
     if (validateForm()) {
-      onAddActivity({
-        ...newActivity,
-        isWeekend: isWeekend(newActivity.prepDate) || isWeekend(newActivity.goDate),
-        isHoliday: isPublicHoliday(newActivity.prepDate) || isPublicHoliday(newActivity.goDate)
-      });
-      resetForm();
+      submitActivity();
     }
   };
 
+  const submitActivity = () => {
+    const activityToAdd = {
+      ...newActivity,
+      isWeekend: isWeekend(newActivity.prepDate) || isWeekend(newActivity.goDate),
+      isHoliday: isPublicHoliday(newActivity.prepDate) || isPublicHoliday(newActivity.goDate)
+    };
+    
+    onAddActivity(activityToAdd);
+    resetForm();
+  };
+
   const handleContinueAnyway = () => {
-    // First, clear the conflict dialog
+    // Clear dialog first
     setShowConflictAlert(false);
     
-    // Then add the activity with a slight delay to prevent UI freezing
+    // Wait for the animation to complete before adding activity
     setTimeout(() => {
-      onAddActivity({
-        ...newActivity,
-        isWeekend: isWeekend(newActivity.prepDate) || isWeekend(newActivity.goDate),
-        isHoliday: isPublicHoliday(newActivity.prepDate) || isPublicHoliday(newActivity.goDate)
-      });
-      resetForm();
-    }, 100);
+      submitActivity();
+    }, 300);
   };
 
   const resetForm = () => {
@@ -222,6 +224,7 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
     setSelectedPrepDate(undefined);
     setSelectedGoDate(undefined);
     setShowAddForm(false);
+    setPendingActivity(null);
   };
 
   return (
@@ -229,7 +232,13 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
       <Button onClick={handleOpenAddActivity}>Add Activity</Button>
 
       {/* Preference Dialog */}
-      <Dialog open={showPreferenceDialog} onOpenChange={setShowPreferenceDialog}>
+      <Dialog 
+        open={showPreferenceDialog} 
+        onOpenChange={(open) => {
+          // Only update if we're closing the dialog
+          if (!open) setShowPreferenceDialog(false);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Activity Scheduling Preferences</DialogTitle>
@@ -260,7 +269,10 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPreferenceDialog(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowPreferenceDialog(false)}
+            >
               Cancel
             </Button>
             <Button onClick={handleProceedToForm}>Continue</Button>
@@ -269,7 +281,13 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
       </Dialog>
 
       {/* Add Activity Form Dialog */}
-      <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
+      <Dialog 
+        open={showAddForm} 
+        onOpenChange={(open) => {
+          // Only update if we're closing the dialog
+          if (!open) setShowAddForm(false);
+        }}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Add New Activity</DialogTitle>
@@ -394,7 +412,9 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
         open={showConflictAlert} 
         onOpenChange={(open) => {
           // Only update state if we're closing the dialog
-          if (!open) setShowConflictAlert(false);
+          if (!open) {
+            setShowConflictAlert(false);
+          }
         }}
       >
         <AlertDialogContent>
@@ -405,10 +425,20 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowConflictAlert(false)}>
+            <AlertDialogCancel 
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowConflictAlert(false);
+              }}
+            >
               Go Back
             </AlertDialogCancel>
-            <AlertDialogAction onClick={handleContinueAnyway}>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.stopPropagation();
+                handleContinueAnyway();
+              }}
+            >
               Continue Anyway
             </AlertDialogAction>
           </AlertDialogFooter>
