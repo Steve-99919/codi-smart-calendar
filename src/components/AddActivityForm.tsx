@@ -194,13 +194,18 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
   };
 
   const handleContinueAnyway = () => {
+    // First, clear the conflict dialog
     setShowConflictAlert(false);
-    onAddActivity({
-      ...newActivity,
-      isWeekend: isWeekend(newActivity.prepDate) || isWeekend(newActivity.goDate),
-      isHoliday: isPublicHoliday(newActivity.prepDate) || isPublicHoliday(newActivity.goDate)
-    });
-    resetForm();
+    
+    // Then add the activity with a slight delay to prevent UI freezing
+    setTimeout(() => {
+      onAddActivity({
+        ...newActivity,
+        isWeekend: isWeekend(newActivity.prepDate) || isWeekend(newActivity.goDate),
+        isHoliday: isPublicHoliday(newActivity.prepDate) || isPublicHoliday(newActivity.goDate)
+      });
+      resetForm();
+    }, 100);
   };
 
   const resetForm = () => {
@@ -223,6 +228,7 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
     <>
       <Button onClick={handleOpenAddActivity}>Add Activity</Button>
 
+      {/* Preference Dialog */}
       <Dialog open={showPreferenceDialog} onOpenChange={setShowPreferenceDialog}>
         <DialogContent>
           <DialogHeader>
@@ -262,6 +268,7 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
         </DialogContent>
       </Dialog>
 
+      {/* Add Activity Form Dialog */}
       <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -382,7 +389,14 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={showConflictAlert} onOpenChange={setShowConflictAlert}>
+      {/* Date Conflict Alert Dialog */}
+      <AlertDialog 
+        open={showConflictAlert} 
+        onOpenChange={(open) => {
+          // Only update state if we're closing the dialog
+          if (!open) setShowConflictAlert(false);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Date Conflict Detected</AlertDialogTitle>
