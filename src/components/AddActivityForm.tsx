@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,6 +39,16 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
   const [selectedPrepDate, setSelectedPrepDate] = useState<Date>();
   const [selectedGoDate, setSelectedGoDate] = useState<Date>();
   const [activityIdPrefix, setActivityIdPrefix] = useState<string>('A');
+  const [newActivity, setNewActivity] = useState<CSVRow>({
+    activityId: "",
+    activityName: "",
+    description: "",
+    strategy: "",
+    prepDate: "",
+    goDate: "",
+    isWeekend: false,
+    isHoliday: false
+  });
 
   const parseActivityId = (id: string) => {
     const match = id.match(/([A-Za-z]+)(\d+)/);
@@ -199,7 +210,9 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
       description: "",
       strategy: "",
       prepDate: "",
-      goDate: ""
+      goDate: "",
+      isWeekend: false,
+      isHoliday: false
     });
     setSelectedPrepDate(undefined);
     setSelectedGoDate(undefined);
