@@ -1,17 +1,18 @@
-
 import { useState } from 'react';
 import { format, parse } from 'date-fns';
 import { CSVRow } from "../types/csv";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import EditableCSVRow from './EditableCSVRow';
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, ArrowRightCircle } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { isValidDateFormat, isDateBefore } from '@/utils/dateUtils';
+import { Button } from "@/components/ui/button";
+import { isValidDateFormat, isDateBefore, addDaysToDate } from '@/utils/dateUtils';
+import { toast } from "sonner";
 
 interface CSVTableProps {
   data: CSVRow[];
@@ -26,25 +27,20 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
   };
   
   const handleSaveRow = (index: number, updatedRow: CSVRow) => {
-    // Remove the current row
     const newData = [...data];
     newData.splice(index, 1);
     
-    // Find the new index based on prep date order
     const insertIndex = newData.findIndex(
       item => !isDateBefore(item.prepDate, updatedRow.prepDate)
     );
     
     if (insertIndex >= 0) {
-      // Insert at the correct position
       newData.splice(insertIndex, 0, updatedRow);
       
-      // Update activity IDs to maintain sequential order
       newData.forEach((row, idx) => {
         row.activityId = (idx + 1).toString();
       });
     } else {
-      // If no later date found, add to the end
       newData.push(updatedRow);
       updatedRow.activityId = newData.length.toString();
     }
@@ -57,18 +53,15 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
     setEditingIndex(null);
   };
 
-  // Helper function to convert dd/mm/yyyy to Date
   const parseDate = (dateStr: string): Date | undefined => {
     if (!isValidDateFormat(dateStr)) return undefined;
     return parse(dateStr, 'dd/MM/yyyy', new Date());
   };
 
-  // Helper function to convert Date to dd/mm/yyyy
   const formatDateString = (date: Date): string => {
     return format(date, 'dd/MM/yyyy');
   };
   
-  // Handle date selection from calendar for non-edit mode
   const handleDateSelect = (index: number, field: 'prepDate' | 'goDate', date: Date | undefined) => {
     if (!date) return;
     
@@ -78,7 +71,22 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
     
     onUpdateData(newData);
   };
-  
+
+  const handleMoveForward = (index: number) => {
+    const newData = [...data];
+    
+    for (let i = index; i < newData.length; i++) {
+      newData[i] = {
+        ...newData[i],
+        prepDate: addDaysToDate(newData[i].prepDate, 7),
+        goDate: addDaysToDate(newData[i].goDate, 7)
+      };
+    }
+    
+    onUpdateData(newData);
+    toast.success('Moved activities forward by one week');
+  };
+
   return (
     <div className="overflow-x-auto border rounded-lg">
       <Table>
@@ -90,7 +98,7 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
             <TableHead>Strategy</TableHead>
             <TableHead>PREP Date</TableHead>
             <TableHead>GO Date</TableHead>
-            <TableHead></TableHead>
+            <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -107,7 +115,6 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
             ) : (
               <TableRow 
                 key={`${row.activityId}-${index}`}
-                onClick={() => handleRowClick(index)}
                 className="cursor-pointer hover:bg-gray-50"
               >
                 <TableCell>{row.activityId}</TableCell>
@@ -150,7 +157,25 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
                     </PopoverContent>
                   </Popover>
                 </TableCell>
-                <TableCell></TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleRowClick(index)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleMoveForward(index)}
+                      title="Move this and following activities forward by 1 week"
+                    >
+                      <ArrowRightCircle className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
               </TableRow>
             )
           ))}
