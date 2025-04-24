@@ -34,7 +34,6 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
     const newData = [...data];
     newData.splice(index, 1);
     
-    // Update activity IDs to maintain sequential order
     newData.forEach((row, idx) => {
       row.activityId = (idx + 1).toString();
     });
@@ -117,13 +116,13 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
     for (let i = index; i < newData.length; i++) {
       newData[i] = {
         ...newData[i],
-        prepDate: addDaysToDate(newData[i].prepDate, 7),
-        goDate: addDaysToDate(newData[i].goDate, 7)
+        prepDate: addDaysToDate(newData[i].prepDate, 5),
+        goDate: addDaysToDate(newData[i].goDate, 5)
       };
     }
     
     onUpdateData(newData);
-    toast.success('Moved activities forward by one week');
+    toast.success('Moved activities forward by 5 days');
   };
 
   return (
@@ -134,7 +133,6 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
           <ToggleGroupItem
             value="weekends"
             aria-label="Toggle weekend highlights"
-            pressed={showWeekends}
             onClick={() => setShowWeekends(!showWeekends)}
           >
             Weekends
@@ -142,7 +140,6 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
           <ToggleGroupItem
             value="holidays"
             aria-label="Toggle holiday highlights"
-            pressed={showHolidays}
             onClick={() => setShowHolidays(!showHolidays)}
           >
             Holidays
@@ -150,7 +147,6 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
           <ToggleGroupItem
             value="duplicates"
             aria-label="Toggle duplicate date highlights"
-            pressed={showDuplicates}
             onClick={() => setShowDuplicates(!showDuplicates)}
           >
             Duplicate Dates
