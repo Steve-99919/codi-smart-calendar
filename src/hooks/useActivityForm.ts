@@ -77,6 +77,15 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     }
   };
 
+  const handleOpenAddActivity = () => {
+    setShowPreferenceDialog(true);
+  };
+
+  const handleProceedToForm = () => {
+    setShowPreferenceDialog(false);
+    setShowAddForm(true);
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     if (name !== 'activityId') {
@@ -160,6 +169,13 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     }
   };
 
+  const handleContinueAnyway = () => {
+    setShowConflictAlert(false);
+    setTimeout(() => {
+      submitActivity();
+    }, 300);
+  };
+
   const resetForm = () => {
     setNewActivity({
       activityId: "",
@@ -195,9 +211,11 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     handlePrefixChange,
     handlePrepDateSelect,
     handleGoDateSelect,
+    handleOpenAddActivity,
+    handleProceedToForm,
     handleInputChange,
     handleSubmit,
-    submitActivity,
-    resetForm
+    handleContinueAnyway,
+    getNextNumber
   };
 };
