@@ -11,7 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { isValidDateFormat } from '@/utils/dateUtils';
+import { isValidDateFormat, isDateBefore } from '@/utils/dateUtils';
 
 interface CSVTableProps {
   data: CSVRow[];
@@ -26,8 +26,29 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
   };
   
   const handleSaveRow = (index: number, updatedRow: CSVRow) => {
+    // Remove the current row
     const newData = [...data];
-    newData[index] = updatedRow;
+    newData.splice(index, 1);
+    
+    // Find the new index based on prep date order
+    const insertIndex = newData.findIndex(
+      item => !isDateBefore(item.prepDate, updatedRow.prepDate)
+    );
+    
+    if (insertIndex >= 0) {
+      // Insert at the correct position
+      newData.splice(insertIndex, 0, updatedRow);
+      
+      // Update activity IDs to maintain sequential order
+      newData.forEach((row, idx) => {
+        row.activityId = (idx + 1).toString();
+      });
+    } else {
+      // If no later date found, add to the end
+      newData.push(updatedRow);
+      updatedRow.activityId = newData.length.toString();
+    }
+    
     onUpdateData(newData);
     setEditingIndex(null);
   };

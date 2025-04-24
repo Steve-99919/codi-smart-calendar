@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { format, parse } from 'date-fns';
 import { CSVRow } from "../types/csv";
@@ -16,11 +15,12 @@ import {
   isWeekend, 
   isPublicHoliday, 
   getHolidayInfo, 
-  findDateConflicts, 
+  findDateConflicts,
   getConflictingEvents,
   isDateBefore 
 } from '@/utils/dateUtils';
 import { cn } from '@/lib/utils';
+import { toast } from "sonner";
 
 interface EditableCSVRowProps {
   row: CSVRow;
@@ -36,7 +36,7 @@ const EditableCSVRow = ({ row, index, onSave, onCancel, data }: EditableCSVRowPr
     prepDate: false,
     goDate: false
   });
-  
+
   const handleInputChange = (field: keyof CSVRow, value: string) => {
     setEditedRow(prev => ({ ...prev, [field]: value }));
     
@@ -76,6 +76,38 @@ const EditableCSVRow = ({ row, index, onSave, onCancel, data }: EditableCSVRowPr
     if (dateErrors.prepDate || dateErrors.goDate) {
       return;
     }
+    
+    // Check if dates have been modified
+    if (editedRow.prepDate !== row.prepDate || editedRow.goDate !== row.goDate) {
+      // Validate date sequence
+      if (!isDateBefore(editedRow.prepDate, editedRow.goDate)) {
+        toast.error('PREP date must be earlier than GO date');
+        return;
+      }
+      
+      // Check for date conflicts excluding the current row
+      const hasConflict = findDateConflicts(
+        data.filter((_, i) => i !== index), 
+        editedRow.prepDate,
+        -1
+      ) || findDateConflicts(
+        data.filter((_, i) => i !== index), 
+        editedRow.goDate,
+        -1
+      );
+      
+      if (hasConflict) {
+        const prepConflicts = getConflictingEvents(data, editedRow.prepDate, index);
+        const goConflicts = getConflictingEvents(data, editedRow.goDate, index);
+        const conflictingActivities = [...new Set([...prepConflicts, ...goConflicts])];
+        
+        toast.error(
+          `Date conflict with: ${conflictingActivities.join(', ')}`
+        );
+        return;
+      }
+    }
+    
     onSave(index, editedRow);
   };
 
