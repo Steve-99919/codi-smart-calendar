@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CSVRow } from '@/types/csv';
-import { isWeekend, isPublicHoliday, isValidDateFormat, getConflictingEvents } from '@/utils/dateUtils';
+import { isWeekend, isPublicHoliday, isValidDateFormat, hasDateConflict } from '@/utils/dateUtils';
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -126,16 +126,20 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
       return false;
     }
 
-    const prepConflicts = getConflictingEvents(data, newActivity.prepDate, -1);
-    if (prepConflicts.length > 0) {
-      setConflictMessage(`Prep Date (${newActivity.prepDate}) conflicts with: ${prepConflicts.join(", ")}. Do you want to continue anyway?`);
+    const prepDateCheck = hasDateConflict(data, newActivity.prepDate);
+    if (prepDateCheck.hasConflict) {
+      setConflictMessage(
+        `Prep Date (${newActivity.prepDate}) conflicts with: ${prepDateCheck.conflictingActivities.join(", ")}. Do you want to continue anyway?`
+      );
       setShowConflictAlert(true);
       return false;
     }
 
-    const goConflicts = getConflictingEvents(data, newActivity.goDate, -1);
-    if (goConflicts.length > 0) {
-      setConflictMessage(`Go Date (${newActivity.goDate}) conflicts with: ${goConflicts.join(", ")}. Do you want to continue anyway?`);
+    const goDateCheck = hasDateConflict(data, newActivity.goDate);
+    if (goDateCheck.hasConflict) {
+      setConflictMessage(
+        `Go Date (${newActivity.goDate}) conflicts with: ${goDateCheck.conflictingActivities.join(", ")}. Do you want to continue anyway?`
+      );
       setShowConflictAlert(true);
       return false;
     }

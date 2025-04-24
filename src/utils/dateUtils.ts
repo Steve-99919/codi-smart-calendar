@@ -355,3 +355,27 @@ export const getNextValidDate = (
   
   return candidateDate;
 };
+
+// Function to check if a date is already used in another activity
+export const hasDateConflict = (
+  data: any[], 
+  dateToCheck: string, 
+  currentActivityId?: string
+): { hasConflict: boolean; conflictingActivities: string[] } => {
+  if (!dateToCheck || !isValidDateFormat(dateToCheck)) {
+    return { hasConflict: false, conflictingActivities: [] };
+  }
+  
+  const conflicts = data.filter(activity => {
+    // Skip comparing with itself if updating existing activity
+    if (currentActivityId && activity.activityId === currentActivityId) {
+      return false;
+    }
+    return activity.prepDate === dateToCheck || activity.goDate === dateToCheck;
+  });
+
+  return {
+    hasConflict: conflicts.length > 0,
+    conflictingActivities: conflicts.map(activity => activity.activityName)
+  };
+};
