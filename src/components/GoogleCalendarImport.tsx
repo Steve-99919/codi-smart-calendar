@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,6 +25,11 @@ const GoogleCalendarImport = ({ data, disabled = false }: GoogleCalendarImportPr
   const handleImport = () => {
     if (!calendarName.trim()) {
       toast.error('Please enter a calendar name');
+      return;
+    }
+    
+    if (data.length === 0) {
+      toast.error('No activities to export');
       return;
     }
     

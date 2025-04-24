@@ -74,35 +74,71 @@ const Dashboard = () => {
     setCsvData(newData);
   };
   
-  const handleTrackButtonClick = () => {
-    setShowTrackingSubscriptionDialog(true);
+  const handleTrackButtonClick = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('You must be logged in to track activities');
+        return;
+      }
+
+      const { data: existingActivities, error: checkError } = await supabase
+        .from('activities')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .limit(1);
+
+      if (checkError) throw checkError;
+
+      if (existingActivities && existingActivities.length > 0) {
+        toast.error('Please delete existing activities in the Tracking page before adding new ones');
+        return;
+      }
+
+      setShowTrackingSubscriptionDialog(true);
+    } catch (error) {
+      console.error('Error checking activities:', error);
+      toast.error('Failed to check tracking status');
+    }
   };
-  
-  const handleSubscribe = () => {
-    toast.success('Subscription process would start here. For now, we\'ll simulate success');
-    setShowTrackingSubscriptionDialog(false);
-    saveToDatabase();
+
+  const handleExportCSV = () => {
+    if (csvData.length === 0) {
+      toast.error('No data to export');
+      return;
+    }
+
+    const headers = ['Activity ID,Activity Name,Description,Strategy,PREP Date,GO Date'];
+    const rows = csvData.map(row => 
+      `${row.activityId},${row.activityName},${row.description},${row.strategy},${row.prepDate},${row.goDate}`
+    );
+    const csvContent = `${headers}\n${rows.join('\n')}`;
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `activities_export_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast.success('CSV file exported successfully');
   };
 
   const handleAddActivity = (newActivity: CSVRow) => {
-    // Create a new array with activities
     const newData = [...csvData];
     
-    // Find the index where to insert the new activity based on prep date
     const insertIndex = newData.findIndex(
       item => !isDateBefore(item.prepDate, newActivity.prepDate)
     );
     
     if (insertIndex >= 0) {
-      // Insert at specific index and update IDs for all subsequent activities
       newData.splice(insertIndex, 0, newActivity);
       
-      // Update IDs for all activities after the insertion point to maintain sequential order
       for (let i = insertIndex + 1; i < newData.length; i++) {
         newData[i].activityId = (parseInt(newData[i].activityId) + 1).toString();
       }
     } else {
-      // If no later prep date is found, add to the end
       newData.push(newActivity);
     }
     
@@ -203,6 +239,12 @@ const Dashboard = () => {
                     onAddActivity={handleAddActivity} 
                   />
                   <GoogleCalendarImport data={csvData} />
+                  <Button
+                    variant="outline"
+                    onClick={handleExportCSV}
+                  >
+                    Export as CSV
+                  </Button>
                   <Button
                     variant="outline"
                     onClick={() => {

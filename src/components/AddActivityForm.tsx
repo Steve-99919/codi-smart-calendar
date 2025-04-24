@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { CSVRow } from '@/types/csv';
 import { useActivityForm } from '@/hooks/useActivityForm';
 import { PreferenceDialog } from './activity/PreferenceDialog';
-import { ConflictAlertDialog } from './activity/ConflictAlertDialog';
 import { ActivityFormDialog } from './activity/ActivityFormDialog';
 
 interface AddActivityFormProps {
@@ -21,9 +20,6 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
     setAllowWeekends,
     allowHolidays,
     setAllowHolidays,
-    showConflictAlert,
-    setShowConflictAlert,
-    conflictMessage,
     selectedPrepDate,
     selectedGoDate,
     activityIdPrefix,
@@ -35,7 +31,6 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
     handleProceedToForm,
     handleInputChange,
     handleSubmit,
-    handleContinueAnyway,
     getNextNumber
   } = useActivityForm({ data, onAddActivity });
 
@@ -66,13 +61,6 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
         handleGoDateSelect={handleGoDateSelect}
         handleInputChange={handleInputChange}
         handleSubmit={handleSubmit}
-      />
-
-      <ConflictAlertDialog 
-        open={showConflictAlert}
-        onOpenChange={setShowConflictAlert}
-        message={conflictMessage}
-        onContinue={handleContinueAnyway}
       />
     </>
   );
