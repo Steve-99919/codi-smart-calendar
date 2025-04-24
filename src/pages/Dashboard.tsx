@@ -198,6 +198,12 @@ const Dashboard = () => {
     }
   };
 
+  const handleSubscribe = () => {
+    toast.success('Subscription process would start here. For now, we\'ll simulate success');
+    setShowTrackingSubscriptionDialog(false);
+    saveToDatabase();
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
