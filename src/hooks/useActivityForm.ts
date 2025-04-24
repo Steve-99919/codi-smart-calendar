@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CSVRow } from '@/types/csv';
-import { isWeekend, isPublicHoliday, isValidDateFormat, hasDateConflict } from '@/utils/dateUtils';
+import { isWeekend, isPublicHoliday, isValidDateFormat } from '@/utils/dateUtils';
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -14,8 +14,6 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
   const [showAddForm, setShowAddForm] = useState(false);
   const [allowWeekends, setAllowWeekends] = useState(false);
   const [allowHolidays, setAllowHolidays] = useState(false);
-  const [showConflictAlert, setShowConflictAlert] = useState(false);
-  const [conflictMessage, setConflictMessage] = useState("");
   const [selectedPrepDate, setSelectedPrepDate] = useState<Date>();
   const [selectedGoDate, setSelectedGoDate] = useState<Date>();
   const [activityIdPrefix, setActivityIdPrefix] = useState<string>('A');
@@ -126,24 +124,6 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
       return false;
     }
 
-    const prepDateCheck = hasDateConflict(data, newActivity.prepDate);
-    if (prepDateCheck.hasConflict) {
-      setConflictMessage(
-        `Prep Date (${newActivity.prepDate}) conflicts with: ${prepDateCheck.conflictingActivities.join(", ")}. Do you want to continue anyway?`
-      );
-      setShowConflictAlert(true);
-      return false;
-    }
-
-    const goDateCheck = hasDateConflict(data, newActivity.goDate);
-    if (goDateCheck.hasConflict) {
-      setConflictMessage(
-        `Go Date (${newActivity.goDate}) conflicts with: ${goDateCheck.conflictingActivities.join(", ")}. Do you want to continue anyway?`
-      );
-      setShowConflictAlert(true);
-      return false;
-    }
-
     return true;
   };
 
@@ -184,13 +164,6 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     }
   };
 
-  const handleContinueAnyway = () => {
-    setShowConflictAlert(false);
-    setTimeout(() => {
-      submitActivity();
-    }, 300);
-  };
-
   const resetForm = () => {
     setNewActivity({
       activityId: "",
@@ -216,9 +189,6 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     setAllowWeekends,
     allowHolidays,
     setAllowHolidays,
-    showConflictAlert,
-    setShowConflictAlert,
-    conflictMessage,
     selectedPrepDate,
     selectedGoDate,
     activityIdPrefix,
@@ -230,7 +200,6 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     handleProceedToForm,
     handleInputChange,
     handleSubmit,
-    handleContinueAnyway,
     getNextNumber
   };
 };
