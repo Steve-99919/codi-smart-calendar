@@ -4,15 +4,16 @@ import { CSVRow } from "../types/csv";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import EditableCSVRow from './EditableCSVRow';
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, ArrowRightCircle } from "lucide-react";
+import { CalendarIcon, ArrowRightCircle, Trash2 } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { isValidDateFormat, isDateBefore, addDaysToDate } from '@/utils/dateUtils';
+import { isValidDateFormat, isDateBefore, addDaysToDate, isWeekend, isPublicHoliday } from '@/utils/dateUtils';
 import { toast } from "sonner";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 interface CSVTableProps {
   data: CSVRow[];
@@ -21,9 +22,47 @@ interface CSVTableProps {
 
 const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [showWeekends, setShowWeekends] = useState(false);
+  const [showHolidays, setShowHolidays] = useState(false);
+  const [showDuplicates, setShowDuplicates] = useState(false);
   
   const handleRowClick = (index: number) => {
     setEditingIndex(index);
+  };
+  
+  const handleDeleteActivity = (index: number) => {
+    const newData = [...data];
+    newData.splice(index, 1);
+    
+    // Update activity IDs to maintain sequential order
+    newData.forEach((row, idx) => {
+      row.activityId = (idx + 1).toString();
+    });
+    
+    onUpdateData(newData);
+    toast.success('Activity deleted successfully');
+  };
+
+  const isDuplicateDate = (date: string, currentIndex: number): boolean => {
+    return data.some((row, index) => 
+      index !== currentIndex && (row.prepDate === date || row.goDate === date)
+    );
+  };
+  
+  const getRowHighlightClass = (row: CSVRow, index: number): string => {
+    if (showWeekends && (isWeekend(row.prepDate) || isWeekend(row.goDate))) {
+      return "bg-red-50";
+    }
+    if (showHolidays && (isPublicHoliday(row.prepDate) || isPublicHoliday(row.goDate))) {
+      return "bg-red-50";
+    }
+    if (showDuplicates && (
+      isDuplicateDate(row.prepDate, index) || 
+      isDuplicateDate(row.goDate, index)
+    )) {
+      return "bg-red-50";
+    }
+    return "";
   };
   
   const handleSaveRow = (index: number, updatedRow: CSVRow) => {
@@ -88,99 +127,139 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
   };
 
   return (
-    <div className="overflow-x-auto border rounded-lg">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Activity ID</TableHead>
-            <TableHead>Activity Name</TableHead>
-            <TableHead>Description</TableHead>
-            <TableHead>Strategy</TableHead>
-            <TableHead>PREP Date</TableHead>
-            <TableHead>GO Date</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.map((row, index) => (
-            editingIndex === index ? (
-              <EditableCSVRow 
-                key={`${row.activityId}-${index}-edit`}
-                row={row} 
-                index={index}
-                onSave={handleSaveRow}
-                onCancel={handleCancelEdit}
-                data={data}
-              />
-            ) : (
-              <TableRow 
-                key={`${row.activityId}-${index}`}
-                className="cursor-pointer hover:bg-gray-50"
-              >
-                <TableCell>{row.activityId}</TableCell>
-                <TableCell>{row.activityName}</TableCell>
-                <TableCell>{row.description}</TableCell>
-                <TableCell>{row.strategy}</TableCell>
-                <TableCell>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <div className="flex items-center gap-1 px-2 py-1 rounded cursor-pointer">
-                        <span>{row.prepDate}</span>
-                        <CalendarIcon className="h-3 w-3" />
-                      </div>
-                    </PopoverTrigger>
-                    <PopoverContent className="p-0 w-auto" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={parseDate(row.prepDate)}
-                        onSelect={(date) => handleDateSelect(index, 'prepDate', date)}
-                        className="rounded-md border"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </TableCell>
-                <TableCell>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <div className="flex items-center gap-1 px-2 py-1 rounded cursor-pointer">
-                        <span>{row.goDate}</span>
-                        <CalendarIcon className="h-3 w-3" />
-                      </div>
-                    </PopoverTrigger>
-                    <PopoverContent className="p-0 w-auto" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={parseDate(row.goDate)}
-                        onSelect={(date) => handleDateSelect(index, 'goDate', date)}
-                        className="rounded-md border"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => handleRowClick(index)}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleMoveForward(index)}
-                      title="Move this and following activities forward by 1 week"
-                    >
-                      <ArrowRightCircle className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            )
-          ))}
-        </TableBody>
-      </Table>
+    <div className="space-y-4">
+      <div className="flex items-center gap-4 mb-4">
+        <span className="text-sm font-medium">Highlight:</span>
+        <ToggleGroup type="multiple" variant="outline">
+          <ToggleGroupItem
+            value="weekends"
+            aria-label="Toggle weekend highlights"
+            pressed={showWeekends}
+            onClick={() => setShowWeekends(!showWeekends)}
+          >
+            Weekends
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            value="holidays"
+            aria-label="Toggle holiday highlights"
+            pressed={showHolidays}
+            onClick={() => setShowHolidays(!showHolidays)}
+          >
+            Holidays
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            value="duplicates"
+            aria-label="Toggle duplicate date highlights"
+            pressed={showDuplicates}
+            onClick={() => setShowDuplicates(!showDuplicates)}
+          >
+            Duplicate Dates
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </div>
+
+      <div className="overflow-x-auto border rounded-lg">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Activity ID</TableHead>
+              <TableHead>Activity Name</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead>Strategy</TableHead>
+              <TableHead>PREP Date</TableHead>
+              <TableHead>GO Date</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.map((row, index) => (
+              editingIndex === index ? (
+                <EditableCSVRow 
+                  key={`${row.activityId}-${index}-edit`}
+                  row={row} 
+                  index={index}
+                  onSave={handleSaveRow}
+                  onCancel={handleCancelEdit}
+                  data={data}
+                />
+              ) : (
+                <TableRow 
+                  key={`${row.activityId}-${index}`}
+                  className={`cursor-pointer hover:bg-gray-50 ${getRowHighlightClass(row, index)}`}
+                >
+                  <TableCell>{row.activityId}</TableCell>
+                  <TableCell>{row.activityName}</TableCell>
+                  <TableCell>{row.description}</TableCell>
+                  <TableCell>{row.strategy}</TableCell>
+                  <TableCell>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <div className="flex items-center gap-1 px-2 py-1 rounded cursor-pointer">
+                          <span>{row.prepDate}</span>
+                          <CalendarIcon className="h-3 w-3" />
+                        </div>
+                      </PopoverTrigger>
+                      <PopoverContent className="p-0 w-auto" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={parseDate(row.prepDate)}
+                          onSelect={(date) => handleDateSelect(index, 'prepDate', date)}
+                          className="rounded-md border"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </TableCell>
+                  <TableCell>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <div className="flex items-center gap-1 px-2 py-1 rounded cursor-pointer">
+                          <span>{row.goDate}</span>
+                          <CalendarIcon className="h-3 w-3" />
+                        </div>
+                      </PopoverTrigger>
+                      <PopoverContent className="p-0 w-auto" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={parseDate(row.goDate)}
+                          onSelect={(date) => handleDateSelect(index, 'goDate', date)}
+                          className="rounded-md border"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleRowClick(index)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleMoveForward(index)}
+                        title="Move this and following activities forward by 1 week"
+                      >
+                        <ArrowRightCircle className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteActivity(index)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 };
