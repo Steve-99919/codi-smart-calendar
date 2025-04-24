@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { CSVRow } from '@/types/csv';
 import { isWeekend, isPublicHoliday, isValidDateFormat, getConflictingEvents } from '@/utils/dateUtils';
@@ -83,7 +82,6 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
   };
 
   const handleOpenAddActivity = () => {
-    // Initialize activityId when opening the form
     const nextId = `${activityIdPrefix}${getNextNumber(activityIdPrefix)}`;
     setNewActivity(prev => ({
       ...prev,
@@ -115,7 +113,6 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
       return false;
     }
 
-    // Ensure activityId is set
     if (!newActivity.activityId) {
       const nextId = `${activityIdPrefix}${getNextNumber(activityIdPrefix)}`;
       setNewActivity(prev => ({
@@ -127,32 +124,6 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     if (!isValidDateFormat(newActivity.prepDate) || !isValidDateFormat(newActivity.goDate)) {
       toast.error("Please enter dates in dd/mm/yyyy format");
       return false;
-    }
-
-    if (!allowWeekends) {
-      if (isWeekend(newActivity.prepDate)) {
-        setConflictMessage(`Prep Date (${newActivity.prepDate}) falls on a weekend. Do you want to continue anyway?`);
-        setShowConflictAlert(true);
-        return false;
-      }
-      if (isWeekend(newActivity.goDate)) {
-        setConflictMessage(`Go Date (${newActivity.goDate}) falls on a weekend. Do you want to continue anyway?`);
-        setShowConflictAlert(true);
-        return false;
-      }
-    }
-
-    if (!allowHolidays) {
-      if (isPublicHoliday(newActivity.prepDate)) {
-        setConflictMessage(`Prep Date (${newActivity.prepDate}) falls on a public holiday. Do you want to continue anyway?`);
-        setShowConflictAlert(true);
-        return false;
-      }
-      if (isPublicHoliday(newActivity.goDate)) {
-        setConflictMessage(`Go Date (${newActivity.goDate}) falls on a public holiday. Do you want to continue anyway?`);
-        setShowConflictAlert(true);
-        return false;
-      }
     }
 
     const prepConflicts = getConflictingEvents(data, newActivity.prepDate, -1);
@@ -173,13 +144,11 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
   };
 
   const submitActivity = () => {
-    // Prevent multiple submissions
     if (isProcessingActivity) return;
     
     setIsProcessingActivity(true);
     
     try {
-      // Ensure activityId is set before submitting
       if (!newActivity.activityId) {
         const nextId = `${activityIdPrefix}${getNextNumber(activityIdPrefix)}`;
         newActivity.activityId = nextId;
@@ -194,7 +163,6 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
       onAddActivity(activityToAdd);
       resetForm();
       
-      // Add a small delay to ensure UI updates properly
       setTimeout(() => {
         setIsProcessingActivity(false);
       }, 300);
@@ -214,7 +182,6 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
 
   const handleContinueAnyway = () => {
     setShowConflictAlert(false);
-    // Add delay to ensure the conflict alert is fully closed before submitting
     setTimeout(() => {
       submitActivity();
     }, 300);
