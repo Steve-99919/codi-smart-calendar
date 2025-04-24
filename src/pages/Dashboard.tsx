@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ import GoogleCalendarImport from '@/components/GoogleCalendarImport';
 import { parseCSV } from '@/utils/csvUtils';
 import { CSVRow } from '@/types/csv';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import AddActivityForm from '@/components/AddActivityForm';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -80,6 +82,35 @@ const Dashboard = () => {
     toast.success('Subscription process would start here. For now, we\'ll simulate success');
     setShowTrackingSubscriptionDialog(false);
     saveToDatabase();
+  };
+
+  const handleAddActivity = (newActivity: CSVRow) => {
+    // Convert ID to number for comparison
+    const newId = parseInt(newActivity.activityId);
+    
+    // Create a new array with activities properly ordered
+    const newData = [...csvData];
+    
+    // Find the index where to insert the new activity
+    const insertIndex = newData.findIndex(
+      item => parseInt(item.activityId) >= newId
+    );
+    
+    if (insertIndex >= 0) {
+      // Insert at specific index and update IDs for all subsequent activities
+      newData.splice(insertIndex, 0, newActivity);
+      
+      // Update IDs for all activities after the insertion point
+      for (let i = insertIndex + 1; i < newData.length; i++) {
+        newData[i].activityId = (parseInt(newData[i].activityId) + 1).toString();
+      }
+    } else {
+      // If no higher ID is found, add to the end
+      newData.push(newActivity);
+    }
+    
+    setCsvData(newData);
+    toast.success(`Successfully added activity: ${newActivity.activityName}`);
   };
   
   const saveToDatabase = async () => {
@@ -170,6 +201,10 @@ const Dashboard = () => {
                 <h2 className="text-xl font-semibold">
                 </h2>
                 <div className="flex gap-2">
+                  <AddActivityForm 
+                    data={csvData} 
+                    onAddActivity={handleAddActivity} 
+                  />
                   <GoogleCalendarImport data={csvData} />
                   <Button
                     variant="outline"
