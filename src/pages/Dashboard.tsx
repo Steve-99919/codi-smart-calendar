@@ -1,5 +1,5 @@
-
 import { useEffect, useState } from 'react';
+import { isDateBefore } from '@/utils/dateUtils';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { toast } from "sonner";
@@ -85,27 +85,24 @@ const Dashboard = () => {
   };
 
   const handleAddActivity = (newActivity: CSVRow) => {
-    // Convert ID to number for comparison
-    const newId = parseInt(newActivity.activityId);
-    
-    // Create a new array with activities properly ordered
+    // Create a new array with activities
     const newData = [...csvData];
     
-    // Find the index where to insert the new activity
+    // Find the index where to insert the new activity based on prep date
     const insertIndex = newData.findIndex(
-      item => parseInt(item.activityId) >= newId
+      item => !isDateBefore(item.prepDate, newActivity.prepDate)
     );
     
     if (insertIndex >= 0) {
       // Insert at specific index and update IDs for all subsequent activities
       newData.splice(insertIndex, 0, newActivity);
       
-      // Update IDs for all activities after the insertion point
+      // Update IDs for all activities after the insertion point to maintain sequential order
       for (let i = insertIndex + 1; i < newData.length; i++) {
         newData[i].activityId = (parseInt(newData[i].activityId) + 1).toString();
       }
     } else {
-      // If no higher ID is found, add to the end
+      // If no later prep date is found, add to the end
       newData.push(newActivity);
     }
     
