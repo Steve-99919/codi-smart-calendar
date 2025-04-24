@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { CSVRow } from "@/types/csv";
+import { format } from "date-fns"; // Added the missing import
 
 interface ActivityFormDialogProps {
   open: boolean;
