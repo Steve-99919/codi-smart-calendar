@@ -64,6 +64,11 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
     return "";
   };
   
+  const parseActivityId = (id: string) => {
+    const match = id.match(/([A-Za-z]+)(\d+)/);
+    return match ? { prefix: match[1], number: parseInt(match[2]) } : null;
+  };
+
   const handleSaveRow = (index: number, updatedRow: CSVRow) => {
     const newData = [...data];
     newData.splice(index, 1);
@@ -75,12 +80,34 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
     if (insertIndex >= 0) {
       newData.splice(insertIndex, 0, updatedRow);
       
-      newData.forEach((row, idx) => {
-        row.activityId = (idx + 1).toString();
+      const prefixGroups = new Map<string, CSVRow[]>();
+      
+      newData.forEach(row => {
+        const parsed = parseActivityId(row.activityId);
+        if (parsed) {
+          const { prefix } = parsed;
+          if (!prefixGroups.has(prefix)) {
+            prefixGroups.set(prefix, []);
+          }
+          prefixGroups.get(prefix)?.push(row);
+        }
+      });
+      
+      prefixGroups.forEach((rows, prefix) => {
+        rows.forEach((row, idx) => {
+          row.activityId = `${prefix}${idx + 1}`;
+        });
       });
     } else {
       newData.push(updatedRow);
-      updatedRow.activityId = newData.length.toString();
+      const parsed = parseActivityId(updatedRow.activityId);
+      if (parsed) {
+        const samePrefix = newData.filter(row => {
+          const p = parseActivityId(row.activityId);
+          return p?.prefix === parsed.prefix;
+        });
+        updatedRow.activityId = `${parsed.prefix}${samePrefix.length}`;
+      }
     }
     
     onUpdateData(newData);
