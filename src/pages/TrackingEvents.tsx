@@ -8,12 +8,13 @@ import Logo from '@/components/Logo';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Trash2 } from 'lucide-react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { ActivityWithStatus, EventStatus } from '@/types/event';
 
-// Define color classes for statuses, map 'fail' DB status to "Delayed" UI label
+// Define color classes for statuses
 const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending', colorClass: 'bg-orange-500 text-white' },
   { value: 'done', label: 'Done', colorClass: 'bg-green-500 text-white' },
-  { value: 'fail', label: 'Delayed', colorClass: 'bg-red-500 text-white' }, // DB expects 'fail', label "Delayed"
+  { value: 'delayed', label: 'Delayed', colorClass: 'bg-red-500 text-white' },
 ];
 
 // Helper function returns color class for the current status value
@@ -43,10 +44,10 @@ const TrackingEvents = () => {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [activities, setActivities] = useState<any[]>([]);
+  const [activities, setActivities] = useState<ActivityWithStatus[]>([]);
   const [eventStatuses, setEventStatuses] = useState<Record<string, any>>({});
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-  const [updatingStatuses, setUpdatingStatuses] = useState<{ [key: string]: boolean }>({});
+  const [updatingStatus, setUpdatingStatus] = useState<{ [key: string]: boolean }>({});
   const [initializingStatuses, setInitializingStatuses] = useState(false);
 
   useEffect(() => {
@@ -81,15 +82,18 @@ const TrackingEvents = () => {
 
         const statusMap: Record<string, any> = {};
         statusesData.forEach((st) => {
-          statusMap[`${st.activity_id}_${st.event_type}`] = st;
+          statusMap[st.activity_id] = st;
         });
 
-        setActivities(activitiesData || []);
+        const activitiesWithStatus = (activitiesData || []).map(activity => ({
+          ...activity,
+          status: statusMap[activity.id] || null
+        }));
+
+        setActivities(activitiesWithStatus);
         setEventStatuses(statusMap);
 
         await initializeMissingStatuses(userId, activitiesData || [], statusMap);
-
-        await autoUpdateStatuses(activitiesData || [], statusMap);
       } catch (error) {
         console.error('Error fetching data:', error);
         toast.error('Failed to load activities and statuses');
@@ -110,22 +114,9 @@ const TrackingEvents = () => {
     const missingStatusRecords = [];
 
     for (const activity of activitiesData) {
-      const prepKey = `${activity.id}_prep`;
-      if (!statusMap[prepKey]) {
+      if (!statusMap[activity.id]) {
         missingStatusRecords.push({
           activity_id: activity.id,
-          event_type: 'prep',
-          status: 'pending',
-          status_updated_at: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-      }
-      const goKey = `${activity.id}_go`;
-      if (!statusMap[goKey]) {
-        missingStatusRecords.push({
-          activity_id: activity.id,
-          event_type: 'go',
           status: 'pending',
           status_updated_at: null,
           created_at: new Date().toISOString(),
@@ -154,11 +145,19 @@ const TrackingEvents = () => {
 
       const newStatusMap = { ...statusMap };
       insertedData?.forEach((st: any) => {
-        const key = `${st.activity_id}_${st.event_type}`;
-        newStatusMap[key] = st;
+        newStatusMap[st.activity_id] = st;
       });
 
       setEventStatuses(newStatusMap);
+      
+      // Update activities with their statuses
+      setActivities(prev => 
+        prev.map(activity => ({
+          ...activity,
+          status: newStatusMap[activity.id] || null
+        }))
+      );
+      
       toast.success(`Initialized ${insertedData.length} missing statuses as Pending`);
     } catch (error) {
       console.error('Unexpected error initializing missing statuses:', error);
@@ -168,68 +167,8 @@ const TrackingEvents = () => {
     }
   };
 
-  const autoUpdateStatuses = async (activitiesData: any[], statusMap: Record<string, any>) => {
-    if (!activitiesData.length) return;
-    let updatesCount = 0;
-
-    const updates = [];
-
-    for (const activity of activitiesData) {
-      const prepStatus = statusMap[`${activity.id}_prep`];
-      if (prepStatus && prepStatus.status === 'pending') {
-        const midnight = getDateMidnight(activity.prep_date);
-        if (new Date() >= midnight) {
-          updates.push({
-            id: prepStatus.id,
-            status: 'done',
-            status_updated_at: new Date().toISOString()
-          });
-          updatesCount++;
-        }
-      }
-      const goStatus = statusMap[`${activity.id}_go`];
-      if (goStatus && goStatus.status === 'pending') {
-        const midnight = getDateMidnight(activity.go_date);
-        if (new Date() >= midnight) {
-          updates.push({
-            id: goStatus.id,
-            status: 'done',
-            status_updated_at: new Date().toISOString()
-          });
-          updatesCount++;
-        }
-      }
-    }
-
-    if (updatesCount === 0) return;
-
-    try {
-      const updatesPromises = updates.map(({ id, status, status_updated_at }) =>
-        supabase
-          .from('event_statuses')
-          .update({ status, status_updated_at })
-          .eq('id', id)
-      );
-      await Promise.all(updatesPromises);
-
-      const newStatusMap = { ...statusMap };
-      updates.forEach(({ id, status }) => {
-        const stKey = Object.keys(newStatusMap).find((k) => newStatusMap[k].id === id);
-        if (stKey) {
-          newStatusMap[stKey] = { ...newStatusMap[stKey], status, status_updated_at: new Date().toISOString() };
-        }
-      });
-      setEventStatuses(newStatusMap);
-      toast.success(`Auto-updated ${updatesCount} event statuses to Done`);
-    } catch (error) {
-      console.error("Error auto updating statuses:", error);
-      toast.error('Failed to auto update some statuses');
-    }
-  };
-
-  const handleStatusChange = async (activityId: string, eventType: 'prep' | 'go', newStatus: string) => {
-    const statusKey = `${activityId}_${eventType}`;
-    const statusRecord = eventStatuses[statusKey];
+  const handleStatusChange = async (activityId: string, newStatus: EventStatus) => {
+    const statusRecord = eventStatuses[activityId];
     if (!statusRecord) {
       toast.error('Status record not found');
       return;
@@ -241,7 +180,7 @@ const TrackingEvents = () => {
     }
 
     try {
-      setUpdatingStatuses((prev) => ({ ...prev, [statusRecord.id]: true }));
+      setUpdatingStatus((prev) => ({ ...prev, [activityId]: true }));
 
       const { error } = await supabase
         .from('event_statuses')
@@ -250,10 +189,25 @@ const TrackingEvents = () => {
 
       if (error) throw error;
 
+      const updatedStatusRecord = { 
+        ...statusRecord, 
+        status: newStatus, 
+        status_updated_at: new Date().toISOString() 
+      };
+      
       setEventStatuses((prev) => ({
         ...prev,
-        [statusKey]: { ...statusRecord, status: newStatus, status_updated_at: new Date().toISOString() },
+        [activityId]: updatedStatusRecord,
       }));
+      
+      // Update activities with new status
+      setActivities(prev => 
+        prev.map(activity => 
+          activity.id === activityId 
+            ? { ...activity, status: updatedStatusRecord } 
+            : activity
+        )
+      );
 
       const label = STATUS_OPTIONS.find(o => o.value === newStatus)?.label || newStatus;
       toast.success(`Status updated to ${label}`);
@@ -261,7 +215,7 @@ const TrackingEvents = () => {
       console.error('Error updating status:', error);
       toast.error('Failed to update status');
     } finally {
-      setUpdatingStatuses((prev) => ({ ...prev, [statusRecord.id]: false }));
+      setUpdatingStatus((prev) => ({ ...prev, [activityId]: false }));
     }
   };
 
@@ -360,71 +314,43 @@ const TrackingEvents = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Strategy</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PREP Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PREP Status</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GO Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GO Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {activities.map((activity, index) => {
-                    const prepStatus = eventStatuses[`${activity.id}_prep`];
-                    const goStatus = eventStatuses[`${activity.id}_go`];
-
-                    return (
-                      <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{activity.activity_id}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{activity.activity_name}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{activity.description}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{activity.strategy}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(activity.prep_date)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          {prepStatus ? (
-                            <Select
-                              value={prepStatus.status}
-                              onValueChange={(value) => handleStatusChange(activity.id, 'prep', value)}
-                              disabled={updatingStatuses[prepStatus.id]}
-                            >
-                              <SelectTrigger className={`w-28 h-8 text-sm ${getStatusColorClass(prepStatus.status)}`}>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {STATUS_OPTIONS.map(opt => (
-                                  <SelectItem key={opt.value} value={opt.value} className={opt.colorClass}>
-                                    {opt.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <span className="text-orange-500 italic">Pending</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(activity.go_date)}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          {goStatus ? (
-                            <Select
-                              value={goStatus.status}
-                              onValueChange={(value) => handleStatusChange(activity.id, 'go', value)}
-                              disabled={updatingStatuses[goStatus.id]}
-                            >
-                              <SelectTrigger className={`w-28 h-8 text-sm ${getStatusColorClass(goStatus.status)}`}>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {STATUS_OPTIONS.map(opt => (
-                                  <SelectItem key={opt.value} value={opt.value} className={opt.colorClass}>
-                                    {opt.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <span className="text-orange-500 italic">Pending</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {activities.map((activity, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{activity.activity_id}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{activity.activity_name}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{activity.description}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{activity.strategy}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(activity.prep_date)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(activity.go_date)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {activity.status ? (
+                          <Select
+                            value={activity.status.status}
+                            onValueChange={(value: EventStatus) => handleStatusChange(activity.id, value)}
+                            disabled={updatingStatus[activity.id]}
+                          >
+                            <SelectTrigger className={`w-28 h-8 text-sm ${getStatusColorClass(activity.status.status)}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {STATUS_OPTIONS.map(opt => (
+                                <SelectItem key={opt.value} value={opt.value} className={opt.colorClass}>
+                                  {opt.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <span className="text-orange-500 italic">Pending</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -457,4 +383,3 @@ const TrackingEvents = () => {
 };
 
 export default TrackingEvents;
-

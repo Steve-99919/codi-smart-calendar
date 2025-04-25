@@ -1,5 +1,5 @@
 
-export type EventStatus = 'pending' | 'done' | 'fail';
+export type EventStatus = 'pending' | 'done' | 'delayed';
 
 export interface Activity {
   id: string;
@@ -16,7 +16,6 @@ export interface Activity {
 export interface EventStatusRecord {
   id: string;
   activity_id: string;
-  event_type: 'prep' | 'go';
   status: EventStatus;
   status_updated_at: string | null;
   notes: string | null;
@@ -25,6 +24,5 @@ export interface EventStatusRecord {
 }
 
 export interface ActivityWithStatus extends Activity {
-  prep_status?: EventStatusRecord;
-  go_status?: EventStatusRecord;
+  status?: EventStatusRecord;
 }
