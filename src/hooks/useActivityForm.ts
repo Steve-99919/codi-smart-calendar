@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { CSVRow } from '@/types/csv';
 import { isWeekend, isPublicHoliday, isValidDateFormat } from '@/utils/dateUtils';
@@ -47,8 +48,8 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
 
   const handlePrefixChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newPrefix = e.target.value.replace(/[^A-Za-z]/g, '');
-    setActivityIdPrefix(newPrefix);
-    updateActivityId(newPrefix);
+    setActivityIdPrefix(newPrefix || 'A'); // Ensure we always have at least one character
+    updateActivityId(newPrefix || 'A');
   };
 
   const updateActivityId = (prefix: string) => {
@@ -62,9 +63,25 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
   const handlePrepDateSelect = (date: Date | undefined) => {
     setSelectedPrepDate(date);
     if (date) {
+      const formattedDate = format(date, 'dd/MM/yyyy');
+      const isDateOnWeekend = isWeekend(formattedDate);
+      const isDateOnHoliday = isPublicHoliday(formattedDate);
+      
+      if (isDateOnWeekend && !allowWeekends) {
+        toast.error("You have selected a weekend date. Please enable weekend dates in preferences or select another date.");
+        setSelectedPrepDate(undefined);
+        return;
+      }
+      
+      if (isDateOnHoliday && !allowHolidays) {
+        toast.error("You have selected a public holiday. Please enable holiday dates in preferences or select another date.");
+        setSelectedPrepDate(undefined);
+        return;
+      }
+      
       setNewActivity(prev => ({
         ...prev,
-        prepDate: format(date, 'dd/MM/yyyy')
+        prepDate: formattedDate
       }));
     }
   };
@@ -72,9 +89,25 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
   const handleGoDateSelect = (date: Date | undefined) => {
     setSelectedGoDate(date);
     if (date) {
+      const formattedDate = format(date, 'dd/MM/yyyy');
+      const isDateOnWeekend = isWeekend(formattedDate);
+      const isDateOnHoliday = isPublicHoliday(formattedDate);
+      
+      if (isDateOnWeekend && !allowWeekends) {
+        toast.error("You have selected a weekend date. Please enable weekend dates in preferences or select another date.");
+        setSelectedGoDate(undefined);
+        return;
+      }
+      
+      if (isDateOnHoliday && !allowHolidays) {
+        toast.error("You have selected a public holiday. Please enable holiday dates in preferences or select another date.");
+        setSelectedGoDate(undefined);
+        return;
+      }
+      
       setNewActivity(prev => ({
         ...prev,
-        goDate: format(date, 'dd/MM/yyyy')
+        goDate: formattedDate
       }));
     }
   };
@@ -121,6 +154,22 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
 
     if (!isValidDateFormat(newActivity.prepDate) || !isValidDateFormat(newActivity.goDate)) {
       toast.error("Please enter dates in dd/mm/yyyy format");
+      return false;
+    }
+
+    // Validate weekend and holiday restrictions
+    const isPrepWeekend = isWeekend(newActivity.prepDate);
+    const isGoWeekend = isWeekend(newActivity.goDate);
+    const isPrepHoliday = isPublicHoliday(newActivity.prepDate);
+    const isGoHoliday = isPublicHoliday(newActivity.goDate);
+
+    if ((isPrepWeekend || isGoWeekend) && !allowWeekends) {
+      toast.error("One or more selected dates fall on a weekend. Please enable weekend dates in preferences or select different dates.");
+      return false;
+    }
+
+    if ((isPrepHoliday || isGoHoliday) && !allowHolidays) {
+      toast.error("One or more selected dates fall on a public holiday. Please enable holiday dates in preferences or select different dates.");
       return false;
     }
 

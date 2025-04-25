@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { isDateBefore } from '@/utils/dateUtils';
+import { isDateBefore, isWeekend, isPublicHoliday } from '@/utils/dateUtils';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { toast } from "sonner";
@@ -136,6 +136,11 @@ const Dashboard = () => {
     toast.success('CSV file exported successfully');
   };
 
+  const parseActivityId = (id: string) => {
+    const match = id.match(/([A-Za-z]+)(\d+)/);
+    return match ? { prefix: match[1], number: parseInt(match[2]) } : null;
+  };
+
   const handleAddActivity = (newActivity: CSVRow) => {
     const newData = [...csvData];
     
@@ -146,17 +151,63 @@ const Dashboard = () => {
     if (insertIndex >= 0) {
       newData.splice(insertIndex, 0, newActivity);
       
-      for (let i = insertIndex + 1; i < newData.length; i++) {
-        newData[i].activityId = (parseInt(newData[i].activityId) + 1).toString();
-      }
+      const prefixGroups = new Map<string, CSVRow[]>();
+      
+      newData.forEach(row => {
+        const parsed = parseActivityId(row.activityId);
+        if (parsed) {
+          const { prefix } = parsed;
+          if (!prefixGroups.has(prefix)) {
+            prefixGroups.set(prefix, []);
+          }
+          prefixGroups.get(prefix)?.push(row);
+        }
+      });
+      
+      prefixGroups.forEach((rows, prefix) => {
+        rows.sort((a, b) => {
+          if (a.prepDate !== b.prepDate) {
+            return isDateBefore(a.prepDate, b.prepDate) ? -1 : 1;
+          }
+          return 0;
+        });
+        
+        rows.forEach((row, idx) => {
+          row.activityId = `${prefix}${idx + 1}`;
+        });
+      });
     } else {
       newData.push(newActivity);
+      
+      const parsed = parseActivityId(newActivity.activityId);
+      if (parsed) {
+        const samePrefix = newData.filter(row => {
+          const p = parseActivityId(row.activityId);
+          return p?.prefix === parsed.prefix;
+        });
+        
+        const numbers = samePrefix
+          .map(row => {
+            const p = parseActivityId(row.activityId);
+            return p ? p.number : 0;
+          })
+          .filter(num => num > 0);
+        
+        const maxNumber = numbers.length > 0 ? Math.max(...numbers) : 0;
+        newActivity.activityId = `${parsed.prefix}${maxNumber + 1}`;
+      }
     }
     
     setCsvData(newData);
     toast.success(`Successfully added activity: ${newActivity.activityName}`);
   };
   
+  const handleSubscribe = () => {
+    toast.success('Subscription process would start here. For now, we\'ll simulate success');
+    setShowTrackingSubscriptionDialog(false);
+    saveToDatabase();
+  };
+
   const saveToDatabase = async () => {
     if (csvData.length === 0) {
       toast.error('No data to save');
@@ -207,12 +258,6 @@ const Dashboard = () => {
     } finally {
       setSavingToDatabase(false);
     }
-  };
-
-  const handleSubscribe = () => {
-    toast.success('Subscription process would start here. For now, we\'ll simulate success');
-    setShowTrackingSubscriptionDialog(false);
-    saveToDatabase();
   };
 
   if (loading) {
