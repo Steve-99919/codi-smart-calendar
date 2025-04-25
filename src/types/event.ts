@@ -21,6 +21,7 @@ export interface EventStatusRecord {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  event_type: string;
 }
 
 export interface ActivityWithStatus extends Activity {

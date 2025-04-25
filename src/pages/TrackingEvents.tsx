@@ -119,6 +119,7 @@ const TrackingEvents = () => {
           activity_id: activity.id,
           status: 'pending',
           status_updated_at: null,
+          event_type: 'activity', // Adding the required event_type field
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         });

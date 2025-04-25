@@ -56,11 +56,12 @@ const StatusConfirm = () => {
           // Create new status record
           const { data, error: insertError } = await supabase
             .from('event_statuses')
-            .insert([{
+            .insert({
               activity_id: activityId,
               status: status,
               status_updated_at: new Date().toISOString(),
-            }])
+              event_type: 'activity', // Adding the required event_type field
+            })
             .select();
 
           if (insertError) {
