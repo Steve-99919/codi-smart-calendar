@@ -9,6 +9,7 @@ import { CSVRow } from '@/types/csv';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import DashboardActions from '@/components/dashboard/DashboardActions';
 import SubscriptionDialog from '@/components/dashboard/SubscriptionDialog';
+import { isDateBefore } from '@/utils/dateUtils';
 
 const Dashboard = () => {
   const navigate = useNavigate();

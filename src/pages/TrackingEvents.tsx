@@ -8,6 +8,7 @@ import { ActivityWithStatus, EventStatus } from '@/types/event';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import DeleteConfirmationDialog from '@/components/tracking/DeleteConfirmationDialog';
 import ActivitiesTable from '@/components/tracking/ActivitiesTable';
+import { STATUS_OPTIONS } from '@/components/tracking/StatusSelect';
 
 const TrackingEvents = () => {
   const navigate = useNavigate();
