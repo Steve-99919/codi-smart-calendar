@@ -286,7 +286,7 @@ const Dashboard = () => {
       
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white shadow rounded-lg p-6">
-          <h1 className="text-2xl font-bold mb-4">CSV Activity Management</h1>
+          <h1 className="text-2xl font-bold mb-4">Smart Activity Management</h1>
           
           {!hasUploadedFile ? (
             <CSVUpload onFileLoaded={handleFileLoaded} />
