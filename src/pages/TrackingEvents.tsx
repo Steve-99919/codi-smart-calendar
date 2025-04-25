@@ -1,43 +1,13 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import Logo from '@/components/Logo';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Trash2 } from 'lucide-react';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { ActivityWithStatus, EventStatus } from '@/types/event';
-
-// Define color classes for statuses
-const STATUS_OPTIONS = [
-  { value: 'pending', label: 'Pending', colorClass: 'bg-orange-500 text-white' },
-  { value: 'done', label: 'Done', colorClass: 'bg-green-500 text-white' },
-  { value: 'delayed', label: 'Delayed', colorClass: 'bg-red-500 text-white' },
-];
-
-// Helper function returns color class for the current status value
-const getStatusColorClass = (status: string) => {
-  const found = STATUS_OPTIONS.find((opt) => opt.value === status);
-  return found ? found.colorClass : '';
-};
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('en-AU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  }).replace(/\//g, '/');
-};
-
-const getDateMidnight = (dateStr: string) => {
-  const d = new Date(dateStr);
-  d.setHours(24, 0, 0, 0); // midnight next day
-  return d;
-};
+import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import DeleteConfirmationDialog from '@/components/tracking/DeleteConfirmationDialog';
+import ActivitiesTable from '@/components/tracking/ActivitiesTable';
 
 const TrackingEvents = () => {
   const navigate = useNavigate();
@@ -119,7 +89,7 @@ const TrackingEvents = () => {
           activity_id: activity.id,
           status: 'pending',
           status_updated_at: null,
-          event_type: 'activity', // Adding the required event_type field
+          event_type: 'activity',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         });
@@ -151,7 +121,6 @@ const TrackingEvents = () => {
 
       setEventStatuses(newStatusMap);
       
-      // Update activities with their statuses
       setActivities(prev => 
         prev.map(activity => ({
           ...activity,
@@ -175,7 +144,6 @@ const TrackingEvents = () => {
       return;
     }
 
-    // Only update if changed
     if (statusRecord.status === newStatus) {
       return;
     }
@@ -201,7 +169,6 @@ const TrackingEvents = () => {
         [activityId]: updatedStatusRecord,
       }));
       
-      // Update activities with new status
       setActivities(prev => 
         prev.map(activity => 
           activity.id === activityId 
@@ -261,23 +228,10 @@ const TrackingEvents = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Logo />
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate('/dashboard')}>
-              Dashboard
-            </Button>
-            <Button variant="ghost" onClick={() => navigate('/tracking-events')} className="font-medium">
-              Track Events
-            </Button>
-            <span className="text-gray-600">{userEmail}</span>
-            <Button variant="outline" onClick={handleLogout}>
-              Logout
-            </Button>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader 
+        userEmail={userEmail} 
+        onLogout={handleLogout}
+      />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white shadow rounded-lg p-6">
@@ -306,79 +260,21 @@ const TrackingEvents = () => {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Activity ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Activity Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Strategy</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PREP Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GO Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {activities.map((activity, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{activity.activity_id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{activity.activity_name}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{activity.description}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{activity.strategy}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(activity.prep_date)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(activity.go_date)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {activity.status ? (
-                          <Select
-                            value={activity.status.status}
-                            onValueChange={(value: EventStatus) => handleStatusChange(activity.id, value)}
-                            disabled={updatingStatus[activity.id]}
-                          >
-                            <SelectTrigger className={`w-28 h-8 text-sm ${getStatusColorClass(activity.status.status)}`}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {STATUS_OPTIONS.map(opt => (
-                                <SelectItem key={opt.value} value={opt.value} className={opt.colorClass}>
-                                  {opt.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <span className="text-orange-500 italic">Pending</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ActivitiesTable 
+              activities={activities}
+              onStatusChange={handleStatusChange}
+              updatingStatus={updatingStatus}
+            />
           )}
         </div>
       </main>
 
-      <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete All Activities</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete all your tracked activities? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteAllActivities}
-              className="bg-red-500 hover:bg-red-600"
-              disabled={deleting}
-            >
-              {deleting ? 'Deleting...' : 'Delete All'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteConfirmationDialog
+        open={showDeleteConfirmation}
+        onOpenChange={setShowDeleteConfirmation}
+        onConfirm={handleDeleteAllActivities}
+        loading={deleting}
+      />
     </div>
   );
 };

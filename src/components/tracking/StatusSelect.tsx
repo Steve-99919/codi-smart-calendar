@@ -1,0 +1,44 @@
+
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { EventStatus } from "@/types/event";
+
+const STATUS_OPTIONS = [
+  { value: 'pending', label: 'Pending', colorClass: 'bg-orange-500 text-white' },
+  { value: 'done', label: 'Done', colorClass: 'bg-green-500 text-white' },
+  { value: 'delayed', label: 'Delayed', colorClass: 'bg-red-500 text-white' },
+];
+
+interface StatusSelectProps {
+  value: string;
+  onChange: (value: EventStatus) => void;
+  disabled?: boolean;
+}
+
+export const getStatusColorClass = (status: string) => {
+  const found = STATUS_OPTIONS.find((opt) => opt.value === status);
+  return found ? found.colorClass : '';
+};
+
+const StatusSelect = ({ value, onChange, disabled }: StatusSelectProps) => {
+  return (
+    <Select
+      value={value}
+      onValueChange={(value: EventStatus) => onChange(value)}
+      disabled={disabled}
+    >
+      <SelectTrigger className={`w-28 h-8 text-sm ${getStatusColorClass(value)}`}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {STATUS_OPTIONS.map(opt => (
+          <SelectItem key={opt.value} value={opt.value} className={opt.colorClass}>
+            {opt.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+};
+
+export default StatusSelect;
+export { STATUS_OPTIONS };
