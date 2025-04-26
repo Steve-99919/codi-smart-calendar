@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
@@ -84,25 +85,37 @@ const TrackingEvents = () => {
 
     const missingStatusRecords = [];
 
-    for (const activity of activitiesData) {
-      if (!statusMap[activity.id]) {
-        missingStatusRecords.push({
-          activity_id: activity.id,
-          status: 'pending',
-          status_updated_at: null,
-          event_type: 'activity',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-      }
-    }
-
-    if (missingStatusRecords.length === 0) {
-      setInitializingStatuses(false);
-      return;
-    }
-
+    // First, let's fetch an existing status to see what event_type values are valid
     try {
+      const { data: existingStatus } = await supabase
+        .from('event_statuses')
+        .select('event_type')
+        .limit(1);
+      
+      const eventType = existingStatus && existingStatus.length > 0 
+        ? existingStatus[0].event_type 
+        : 'activity'; // Fallback if no existing records
+      
+      console.log('Using event_type:', eventType);
+
+      for (const activity of activitiesData) {
+        if (!statusMap[activity.id]) {
+          missingStatusRecords.push({
+            activity_id: activity.id,
+            status: 'pending',
+            status_updated_at: null,
+            event_type: eventType,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+        }
+      }
+
+      if (missingStatusRecords.length === 0) {
+        setInitializingStatuses(false);
+        return;
+      }
+
       const { data: insertedData, error: insertError } = await supabase
         .from('event_statuses')
         .insert(missingStatusRecords)
