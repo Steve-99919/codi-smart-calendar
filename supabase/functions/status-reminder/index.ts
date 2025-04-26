@@ -116,7 +116,7 @@ const handleStatusReminders = async (): Promise<Response> => {
 
         try {
           const emailResult = await resend.emails.send({
-            from: "Smart Activity Manager <no-reply@resend.dev>",
+            from: "Activity Manager <onboarding@resend.dev>",
             to: [email],
             subject: `Status Update Required: ${activity.activity_name}`,
             html: `
@@ -133,7 +133,7 @@ const handleStatusReminders = async (): Promise<Response> => {
                 </a>
               </p>
               <p>If you don't respond, the activity will remain in "Pending" status.</p>
-              <p>Thank you,<br>Smart Activity Manager</p>
+              <p>Thank you,<br>Activity Manager</p>
             `,
           });
 
