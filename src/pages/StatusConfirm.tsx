@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,7 +7,7 @@ import Logo from '@/components/Logo';
 import { toast } from 'sonner';
 import { CheckCircle, XCircle } from 'lucide-react';
 
-// Get the current app's URL, fallback to localhost for development
+// Get the current app's URL
 const APP_URL = import.meta.env.PROD 
   ? window.location.origin 
   : 'http://localhost:5173';
@@ -89,12 +90,6 @@ const StatusConfirm = () => {
 
           setSuccess(true);
         }
-
-        // Update the redirect logic to use dynamic APP_URL
-        const confirmUrl = `${APP_URL}/status-confirm?token=${token}&status=done`;
-        const delayUrl = `${APP_URL}/status-confirm?token=${token}&status=delayed`;
-
-        // Rest of the code remains the same
       } catch (err: any) {
         console.error('Error updating status:', err);
         setError(err.message || 'Failed to update status');

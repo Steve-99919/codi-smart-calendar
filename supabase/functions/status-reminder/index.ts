@@ -12,7 +12,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 // Use environment variable for APP URL, with a fallback
-const APP_URL = Deno.env.get("APP_URL") || "https://your-app-domain.lovable.app";
+const APP_URL = Deno.env.get("APP_URL") || "https://mightytouchstrategies.org";
 
 // CORS headers for API responses
 const corsHeaders = {
@@ -114,7 +114,7 @@ const handleStatusReminders = async (): Promise<Response> => {
         const statusId = activity.event_statuses[0]?.id || null;
         const verificationToken = btoa(`${activity.id}:${statusId || 'new'}`);
         
-        // Use the APP_URL from environment variable
+        // Use the APP_URL directly (now set to your domain)
         const confirmUrl = `${APP_URL}/status-confirm?token=${verificationToken}&status=done`;
         const delayUrl = `${APP_URL}/status-confirm?token=${verificationToken}&status=delayed`;
 
