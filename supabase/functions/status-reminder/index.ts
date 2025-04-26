@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { Resend } from "npm:resend@2.0.0";
@@ -17,17 +16,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface ActivityStatus {
-  id: string;
-  activity_id: string;
-  status: string;
-  user_id: string;
-  email: string;
-  activity_name: string;
-  prep_date: string;
-  go_date: string;
-}
-
 const handleStatusReminders = async (): Promise<Response> => {
   try {
     console.log("Starting status reminder process");
@@ -39,6 +27,7 @@ const handleStatusReminders = async (): Promise<Response> => {
     const yesterdayFormatted = yesterday.toISOString().split('T')[0];
     
     console.log(`Checking for prep dates that were yesterday: ${yesterdayFormatted}`);
+    console.log(`Current timestamp: ${now.toISOString()}`);
     
     // Get activities whose prep_date was yesterday and are still pending
     const { data: activities, error: activitiesError } = await supabase
@@ -61,6 +50,7 @@ const handleStatusReminders = async (): Promise<Response> => {
     }
 
     console.log(`Found ${activities?.length || 0} activities with prep date yesterday`);
+    console.log('Activities details:', JSON.stringify(activities, null, 2));
 
     // Filter activities that are still pending
     const pendingActivities = activities?.filter(activity => {
@@ -156,7 +146,7 @@ const handleStatusReminders = async (): Promise<Response> => {
     );
 
   } catch (error) {
-    console.error("Error in status reminder function:", error);
+    console.error("Comprehensive error in status reminder function:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
