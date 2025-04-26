@@ -70,7 +70,7 @@ export const useActivities = (userId: string | undefined) => {
           activity_id: activity.id,
           status: 'pending',
           status_updated_at: null,
-          event_type: 'pending',  // Changed from 'activity' to 'pending'
+          event_type: 'pending',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }));
@@ -127,7 +127,8 @@ export const useActivities = (userId: string | undefined) => {
       const { error } = await supabase
         .from('event_statuses')
         .update({ 
-          status: newStatus, 
+          status: newStatus,
+          event_type: newStatus,
           status_updated_at: new Date().toISOString() 
         })
         .eq('id', statusRecord.id);
@@ -136,7 +137,8 @@ export const useActivities = (userId: string | undefined) => {
 
       const updatedStatusRecord = { 
         ...statusRecord, 
-        status: newStatus, 
+        status: newStatus,
+        event_type: newStatus,
         status_updated_at: new Date().toISOString() 
       };
       

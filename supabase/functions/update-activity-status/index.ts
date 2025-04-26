@@ -13,16 +13,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Helper function to create URL-safe base64 encoding
 function urlSafeBase64Decode(str: string): string {
-  // Replace URL-safe characters back to standard base64
   let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
-  
-  // Add padding if needed
   while (base64.length % 4) {
     base64 += '=';
   }
-  
   try {
     return atob(base64);
   } catch (e) {
@@ -32,12 +27,10 @@ function urlSafeBase64Decode(str: string): string {
 }
 
 serve(async (req: Request) => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Parse URL to get query parameters
   const url = new URL(req.url);
   const token = url.searchParams.get("token");
   const status = url.searchParams.get("status");
@@ -58,8 +51,6 @@ serve(async (req: Request) => {
 
   try {
     console.log("Processing token:", token);
-    
-    // Decode token (format: activityId:statusId)
     const decoded = urlSafeBase64Decode(token);
     console.log("Decoded token:", decoded);
     
@@ -70,7 +61,6 @@ serve(async (req: Request) => {
       throw new Error("Missing activity ID in token");
     }
 
-    // First, verify the activity exists
     const { data: activity, error: activityError } = await supabase
       .from("activities")
       .select("*")
@@ -88,21 +78,18 @@ serve(async (req: Request) => {
     }
 
     console.log("Activity found:", activity);
-    
     let result;
     
-    // If statusId is 'new', create new status record
     if (statusId === "new") {
       console.log("Creating new status record for activity:", activityId);
       
-      // Changed 'activity' to 'pending' for the event_type field
       const { data, error: insertError } = await supabase
         .from("event_statuses")
         .insert({
           activity_id: activityId,
           status: status,
           status_updated_at: new Date().toISOString(),
-          event_type: "pending",  // Changed from 'activity' to 'pending' to match constraint
+          event_type: status, // Use the status as the event type since we've updated the constraint
         })
         .select();
 
@@ -116,7 +103,6 @@ serve(async (req: Request) => {
     } else {
       console.log("Updating existing status record:", statusId);
       
-      // Verify the status record exists
       const { data: statusRecord, error: statusError } = await supabase
         .from("event_statuses")
         .select("*")
@@ -137,7 +123,7 @@ serve(async (req: Request) => {
             activity_id: activityId,
             status: status,
             status_updated_at: new Date().toISOString(),
-            event_type: "pending",  // Changed from 'activity' to 'pending'
+            event_type: status, // Use the status as the event type
           })
           .select();
           
@@ -149,11 +135,11 @@ serve(async (req: Request) => {
         console.log("New status created:", data);
         result = data;
       } else {
-        // Update existing status record
         const { data, error: updateError } = await supabase
           .from("event_statuses")
           .update({ 
             status: status,
+            event_type: status, // Update the event_type to match the status
             status_updated_at: new Date().toISOString()
           })
           .eq("id", statusId)
