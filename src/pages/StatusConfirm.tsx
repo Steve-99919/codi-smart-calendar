@@ -49,16 +49,22 @@ const StatusConfirm = () => {
         // If statusId is 'new', we need to create a new status record
         if (statusId === 'new') {
           console.log("Creating new status record for activity:", activityId);
-          // First, get the activity to ensure it exists
+          
+          // First, verify the activity exists - don't use single() as it throws errors if not found
           const { data: activity, error: activityError } = await supabase
             .from('activities')
             .select('*')
             .eq('id', activityId)
-            .single();
+            .maybeSingle();
 
-          if (activityError || !activity) {
+          if (activityError) {
             console.error("Activity fetch error:", activityError);
-            throw new Error('Activity not found');
+            throw activityError;
+          }
+
+          if (!activity) {
+            console.error("Activity not found with ID:", activityId);
+            throw new Error(`Activity with ID ${activityId} not found`);
           }
 
           console.log("Activity found:", activity);
@@ -83,6 +89,24 @@ const StatusConfirm = () => {
           setSuccess(true);
         } else {
           console.log("Updating existing status record:", statusId);
+          
+          // Verify the status record exists
+          const { data: statusRecord, error: statusError } = await supabase
+            .from('event_statuses')
+            .select('*')
+            .eq('id', statusId)
+            .maybeSingle();
+            
+          if (statusError) {
+            console.error("Status fetch error:", statusError);
+            throw statusError;
+          }
+          
+          if (!statusRecord) {
+            console.error("Status record not found with ID:", statusId);
+            throw new Error(`Status record with ID ${statusId} not found`);
+          }
+          
           // Update existing status record
           const { error: updateError } = await supabase
             .from('event_statuses')
