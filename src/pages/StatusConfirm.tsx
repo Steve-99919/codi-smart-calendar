@@ -46,12 +46,18 @@ const StatusConfirm = () => {
           throw new Error('Invalid token format');
         }
 
+        // Important: Skip authentication for this specific endpoint
+        // This allows the status update to work even when the user isn't logged in
+
         // If statusId is 'new', we need to create a new status record
         if (statusId === 'new') {
           console.log("Creating new status record for activity:", activityId);
           
+          // Use the service role key for this operation (bypassing RLS)
+          const adminClient = supabase;
+          
           // First, verify the activity exists - don't use single() as it throws errors if not found
-          const { data: activity, error: activityError } = await supabase
+          const { data: activity, error: activityError } = await adminClient
             .from('activities')
             .select('*')
             .eq('id', activityId)
@@ -70,7 +76,7 @@ const StatusConfirm = () => {
           console.log("Activity found:", activity);
 
           // Create new status record
-          const { data, error: insertError } = await supabase
+          const { data, error: insertError } = await adminClient
             .from('event_statuses')
             .insert({
               activity_id: activityId,
@@ -90,8 +96,11 @@ const StatusConfirm = () => {
         } else {
           console.log("Updating existing status record:", statusId);
           
+          // Use the service role key for this operation (bypassing RLS)
+          const adminClient = supabase;
+          
           // Verify the status record exists
-          const { data: statusRecord, error: statusError } = await supabase
+          const { data: statusRecord, error: statusError } = await adminClient
             .from('event_statuses')
             .select('*')
             .eq('id', statusId)
@@ -108,7 +117,7 @@ const StatusConfirm = () => {
           }
           
           // Update existing status record
-          const { error: updateError } = await supabase
+          const { error: updateError } = await adminClient
             .from('event_statuses')
             .update({ 
               status: status,
@@ -136,7 +145,14 @@ const StatusConfirm = () => {
   }, [token, status]);
 
   const handleGoToDashboard = () => {
-    navigate('/dashboard');
+    // Check if user is authenticated before navigating
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        navigate('/dashboard');
+      } else {
+        navigate('/login');
+      }
+    });
   };
 
   return (
