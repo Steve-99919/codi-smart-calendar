@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { Resend } from "npm:resend@2.0.0";
@@ -119,7 +120,7 @@ const handleStatusReminders = async (): Promise<Response> => {
 
         try {
           const emailResult = await resend.emails.send({
-            from: "Activity Manager <onboarding@resend.dev>",
+            from: "Activity Manager <notifications@mightytouchstrategies.org>",
             to: [email],
             subject: `Status Update Required: ${activity.activity_name}`,
             html: `
