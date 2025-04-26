@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
@@ -91,7 +92,7 @@ const TrackingEvents = () => {
             activity_id: activity.id,
             status: 'pending',
             status_updated_at: null,
-            event_type: 'activity',
+            event_type: 'activity',  // Explicitly set to 'activity'
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           });
