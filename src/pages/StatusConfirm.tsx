@@ -7,11 +7,6 @@ import Logo from '@/components/Logo';
 import { toast } from 'sonner';
 import { CheckCircle, XCircle } from 'lucide-react';
 
-// Get the current app's URL
-const APP_URL = import.meta.env.PROD 
-  ? window.location.origin 
-  : 'http://localhost:5173';
-
 const StatusConfirm = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -36,17 +31,24 @@ const StatusConfirm = () => {
       }
 
       try {
+        console.log("Processing token:", token);
+        console.log("Status:", status);
+        
         // Decode token (format: activityId:statusId)
         let activityId, statusId;
         try {
           const decoded = atob(token);
+          console.log("Decoded token:", decoded);
           [activityId, statusId] = decoded.split(':');
+          console.log("ActivityId:", activityId, "StatusId:", statusId);
         } catch (e) {
+          console.error("Token decoding error:", e);
           throw new Error('Invalid token format');
         }
 
         // If statusId is 'new', we need to create a new status record
         if (statusId === 'new') {
+          console.log("Creating new status record for activity:", activityId);
           // First, get the activity to ensure it exists
           const { data: activity, error: activityError } = await supabase
             .from('activities')
@@ -55,8 +57,11 @@ const StatusConfirm = () => {
             .single();
 
           if (activityError || !activity) {
+            console.error("Activity fetch error:", activityError);
             throw new Error('Activity not found');
           }
+
+          console.log("Activity found:", activity);
 
           // Create new status record
           const { data, error: insertError } = await supabase
@@ -70,11 +75,14 @@ const StatusConfirm = () => {
             .select();
 
           if (insertError) {
+            console.error("Status insert error:", insertError);
             throw insertError;
           }
 
+          console.log("New status created:", data);
           setSuccess(true);
         } else {
+          console.log("Updating existing status record:", statusId);
           // Update existing status record
           const { error: updateError } = await supabase
             .from('event_statuses')
@@ -85,9 +93,11 @@ const StatusConfirm = () => {
             .eq('id', statusId);
 
           if (updateError) {
+            console.error("Status update error:", updateError);
             throw updateError;
           }
 
+          console.log("Status updated successfully");
           setSuccess(true);
         }
       } catch (err: any) {
