@@ -95,13 +95,14 @@ serve(async (req: Request) => {
     if (statusId === "new") {
       console.log("Creating new status record for activity:", activityId);
       
+      // Changed 'activity' to 'pending' for the event_type field
       const { data, error: insertError } = await supabase
         .from("event_statuses")
         .insert({
           activity_id: activityId,
           status: status,
           status_updated_at: new Date().toISOString(),
-          event_type: "activity",
+          event_type: "pending",  // Changed from 'activity' to 'pending' to match constraint
         })
         .select();
 
@@ -136,7 +137,7 @@ serve(async (req: Request) => {
             activity_id: activityId,
             status: status,
             status_updated_at: new Date().toISOString(),
-            event_type: "activity",
+            event_type: "pending",  // Changed from 'activity' to 'pending'
           })
           .select();
           

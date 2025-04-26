@@ -70,7 +70,7 @@ export const useActivities = (userId: string | undefined) => {
           activity_id: activity.id,
           status: 'pending',
           status_updated_at: null,
-          event_type: 'activity',
+          event_type: 'pending',  // Changed from 'activity' to 'pending'
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }));
