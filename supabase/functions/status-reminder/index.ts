@@ -127,9 +127,9 @@ const handleStatusReminders = async (): Promise<Response> => {
         const tokenPayload = `${activity.id}:${statusId || 'new'}`;
         const verificationToken = urlSafeBase64Encode(tokenPayload);
         
-        // Construct direct links to the new edge function
-        const confirmUrl = `${APP_URL}/api/update-activity-status?token=${verificationToken}&status=done`;
-        const delayUrl = `${APP_URL}/api/update-activity-status?token=${verificationToken}&status=delayed`;
+        // Updated URLs to point to our status-confirm page instead of the edge function
+        const confirmUrl = `${APP_URL}/status-confirm?token=${verificationToken}&status=done`;
+        const delayUrl = `${APP_URL}/status-confirm?token=${verificationToken}&status=delayed`;
 
         console.log("Token payload:", tokenPayload);
         console.log("URL-safe encoded token:", verificationToken);

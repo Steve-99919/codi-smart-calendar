@@ -32,8 +32,10 @@ const StatusConfirm = () => {
       }
 
       try {
-        // Call the edge function directly
-        const response = await fetch(`https://pueoiaivzdbhiygylkok.supabase.co/functions/v1/update-activity-status?token=${token}&status=${status}`);
+        // Call the edge function directly with the full URL
+        const response = await fetch(
+          `https://pueoiaivzdbhiygylkok.supabase.co/functions/v1/update-activity-status?token=${token}&status=${status}`
+        );
         
         const result = await response.json();
         
@@ -43,6 +45,7 @@ const StatusConfirm = () => {
         
         setSuccess(true);
         setActivityName(result.activity);
+        toast.success('Status updated successfully!');
         console.log('Status update successful:', result);
       } catch (err: any) {
         console.error('Error updating status:', err);
