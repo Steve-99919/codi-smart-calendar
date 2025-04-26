@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
@@ -83,20 +82,10 @@ const TrackingEvents = () => {
 
     setInitializingStatuses(true);
 
-    const missingStatusRecords = [];
-
-    // First, let's fetch an existing status to see what event_type values are valid
     try {
-      const { data: existingStatus } = await supabase
-        .from('event_statuses')
-        .select('event_type')
-        .limit(1);
+      const eventType = 'activity';
       
-      const eventType = existingStatus && existingStatus.length > 0 
-        ? existingStatus[0].event_type 
-        : 'activity'; // Fallback if no existing records
-      
-      console.log('Using event_type:', eventType);
+      const missingStatusRecords = [];
 
       for (const activity of activitiesData) {
         if (!statusMap[activity.id]) {

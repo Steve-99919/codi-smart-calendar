@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { Resend } from "npm:resend@2.0.0";
@@ -22,12 +23,13 @@ const handleStatusReminders = async (): Promise<Response> => {
     
     // Get current date
     const now = new Date();
+    console.log(`Current date and time: ${now.toISOString()}`);
+    
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayFormatted = yesterday.toISOString().split('T')[0];
     
     console.log(`Checking for prep dates that were yesterday: ${yesterdayFormatted}`);
-    console.log(`Current timestamp: ${now.toISOString()}`);
     
     // Get activities whose prep_date was yesterday and are still pending
     const { data: activities, error: activitiesError } = await supabase
@@ -61,6 +63,7 @@ const handleStatusReminders = async (): Promise<Response> => {
     console.log(`${pendingActivities?.length || 0} activities still pending`);
 
     if (!pendingActivities || pendingActivities.length === 0) {
+      console.log("No pending activities requiring reminders, finishing execution");
       return new Response(
         JSON.stringify({ message: "No pending activities requiring reminders" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
@@ -69,6 +72,8 @@ const handleStatusReminders = async (): Promise<Response> => {
 
     // Get user emails
     const userIds = [...new Set(pendingActivities.map(a => a.user_id))];
+    console.log(`Finding emails for ${userIds.length} unique users:`, userIds);
+    
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('id, email')
@@ -79,15 +84,21 @@ const handleStatusReminders = async (): Promise<Response> => {
       throw profilesError;
     }
 
+    console.log(`Found ${profiles?.length || 0} user profiles:`, JSON.stringify(profiles, null, 2));
+
     // Create a map of user_id to email
     const userEmails: Record<string, string> = {};
     profiles?.forEach(profile => {
       if (profile.email) {
         userEmails[profile.id] = profile.email;
+        console.log(`Mapped user ${profile.id} to email ${profile.email}`);
+      } else {
+        console.warn(`No email found for user ${profile.id}`);
       }
     });
 
     // Send reminders
+    console.log("Starting to send email reminders...");
     const reminderResults = await Promise.all(
       pendingActivities.map(async (activity) => {
         const email = userEmails[activity.user_id];
@@ -96,6 +107,7 @@ const handleStatusReminders = async (): Promise<Response> => {
           return { success: false, activity: activity.activity_id, reason: "No email found" };
         }
 
+        console.log(`Preparing email for activity ${activity.activity_id} to ${email}`);
         const statusId = activity.event_statuses[0]?.id || null;
         const verificationToken = btoa(`${activity.id}:${statusId || 'new'}`);
         const appUrl = Deno.env.get("APP_URL") || "https://localhost:5173";
@@ -103,7 +115,7 @@ const handleStatusReminders = async (): Promise<Response> => {
         const delayUrl = `${appUrl}/status-confirm?token=${verificationToken}&status=delayed`;
 
         try {
-          await resend.emails.send({
+          const emailResult = await resend.emails.send({
             from: "Smart Activity Manager <no-reply@resend.dev>",
             to: [email],
             subject: `Status Update Required: ${activity.activity_name}`,
@@ -125,22 +137,24 @@ const handleStatusReminders = async (): Promise<Response> => {
             `,
           });
 
-          console.log(`Reminder sent for activity ${activity.activity_id} to ${email}`);
-          return { success: true, activity: activity.activity_id };
+          console.log(`Email sent successfully for activity ${activity.activity_id} to ${email}:`, emailResult);
+          return { success: true, activity: activity.activity_id, email };
         } catch (emailError) {
-          console.error(`Error sending email for activity ${activity.activity_id}:`, emailError);
-          return { success: false, activity: activity.activity_id, reason: "Email sending failed" };
+          console.error(`Error sending email for activity ${activity.activity_id} to ${email}:`, emailError);
+          return { success: false, activity: activity.activity_id, reason: "Email sending failed", error: emailError };
         }
       })
     );
 
-    console.log("Reminder process completed");
+    const successCount = reminderResults.filter(r => r.success).length;
+    console.log(`Email reminder process completed. ${successCount}/${pendingActivities.length} emails sent successfully`);
     
     return new Response(
       JSON.stringify({ 
         message: "Status reminders processed", 
         results: reminderResults,
-        activityCount: pendingActivities.length
+        activityCount: pendingActivities.length,
+        successCount: successCount
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
