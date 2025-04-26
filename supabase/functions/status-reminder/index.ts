@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { Resend } from "npm:resend@2.0.0";
@@ -10,6 +9,9 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Initialize Resend client
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+
+// Use environment variable for APP URL, with a fallback
+const APP_URL = Deno.env.get("APP_URL") || "https://your-app-domain.lovable.app";
 
 // CORS headers for API responses
 const corsHeaders = {
@@ -110,9 +112,10 @@ const handleStatusReminders = async (): Promise<Response> => {
         console.log(`Preparing email for activity ${activity.activity_id} to ${email}`);
         const statusId = activity.event_statuses[0]?.id || null;
         const verificationToken = btoa(`${activity.id}:${statusId || 'new'}`);
-        const appUrl = Deno.env.get("APP_URL") || "https://localhost:5173";
-        const confirmUrl = `${appUrl}/status-confirm?token=${verificationToken}&status=done`;
-        const delayUrl = `${appUrl}/status-confirm?token=${verificationToken}&status=delayed`;
+        
+        // Use the APP_URL from environment variable
+        const confirmUrl = `${APP_URL}/status-confirm?token=${verificationToken}&status=done`;
+        const delayUrl = `${APP_URL}/status-confirm?token=${verificationToken}&status=delayed`;
 
         try {
           const emailResult = await resend.emails.send({
