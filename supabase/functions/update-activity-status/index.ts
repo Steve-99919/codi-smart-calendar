@@ -89,7 +89,7 @@ serve(async (req: Request) => {
           activity_id: activityId,
           status: status,
           status_updated_at: new Date().toISOString(),
-          event_type: status, // Use the status as the event type since we've updated the constraint
+          event_type: status, // Use the status as the event type
         })
         .select();
 
