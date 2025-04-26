@@ -33,11 +33,13 @@ const StatusConfirm = () => {
 
       try {
         // Call the edge function directly with the full URL
+        console.log(`Processing token: ${token}, status: ${status}`);
         const response = await fetch(
           `https://pueoiaivzdbhiygylkok.supabase.co/functions/v1/update-activity-status?token=${token}&status=${status}`
         );
         
         const result = await response.json();
+        console.log('Response from update-activity-status:', result);
         
         if (!response.ok) {
           throw new Error(result.error || 'Failed to update status');
