@@ -5,187 +5,67 @@ import { toast } from "sonner";
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
-import { ActivityWithStatus, EventStatus } from '@/types/event';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import DeleteConfirmationDialog from '@/components/tracking/DeleteConfirmationDialog';
 import ActivitiesTable from '@/components/tracking/ActivitiesTable';
-import { STATUS_OPTIONS } from '@/components/tracking/StatusSelect';
+import EmptyActivities from '@/components/tracking/EmptyActivities';
+import { useActivities } from '@/hooks/useActivities';
 
 const TrackingEvents = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [deleting, setDeleting] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [activities, setActivities] = useState<ActivityWithStatus[]>([]);
-  const [eventStatuses, setEventStatuses] = useState<Record<string, any>>({});
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-  const [updatingStatus, setUpdatingStatus] = useState<{ [key: string]: boolean }>({});
-  const [initializingStatuses, setInitializingStatuses] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [userId, setUserId] = useState<string>();
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData.session) {
-          navigate('/login');
-          return;
-        }
-        setUserEmail(sessionData.session.user.email);
-        const userId = sessionData.session.user.id;
-
-        const { data: activitiesData, error: activitiesError } = await supabase
-          .from('activities')
-          .select('*')
-          .eq('user_id', userId)
-          .order('prep_date', { ascending: true });
-        if (activitiesError) throw activitiesError;
-
-        const activityIds = (activitiesData || []).map((a) => a.id);
-        let statusesData = [];
-        if (activityIds.length > 0) {
-          const { data: eventStatusesData, error: statusesError } = await supabase
-            .from('event_statuses')
-            .select('*')
-            .in('activity_id', activityIds);
-          if (statusesError) throw statusesError;
-          statusesData = eventStatusesData || [];
-        }
-
-        const statusMap: Record<string, any> = {};
-        statusesData.forEach((st) => {
-          statusMap[st.activity_id] = st;
-        });
-
-        const activitiesWithStatus = (activitiesData || []).map(activity => ({
-          ...activity,
-          status: statusMap[activity.id] || null
-        }));
-
-        setActivities(activitiesWithStatus);
-        setEventStatuses(statusMap);
-
-        await initializeMissingStatuses(userId, activitiesData || [], statusMap);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        toast.error('Failed to load activities and statuses');
-      } finally {
-        setLoading(false);
+    const checkSession = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        navigate('/login');
+        return;
       }
+      setUserEmail(sessionData.session.user.email);
+      setUserId(sessionData.session.user.id);
     };
 
-    fetchData();
-
+    checkSession();
   }, [navigate]);
 
-  const initializeMissingStatuses = async (userId: string, activitiesData: any[], statusMap: Record<string, any>) => {
-    if (!activitiesData.length) return;
+  const {
+    loading,
+    activities,
+    initializingStatuses,
+    fetchActivities,
+    handleStatusChange,
+  } = useActivities(userId);
 
-    setInitializingStatuses(true);
+  useEffect(() => {
+    if (userId) {
+      fetchActivities();
+    }
+  }, [userId]);
 
+  const handleDeleteAllActivities = async () => {
+    if (!userId) return;
+    
+    setDeleting(true);
     try {
-      const missingStatusRecords = [];
-
-      for (const activity of activitiesData) {
-        if (!statusMap[activity.id]) {
-          missingStatusRecords.push({
-            activity_id: activity.id,
-            status: 'pending',
-            status_updated_at: null,
-            event_type: 'activity',  // Explicitly set to 'activity'
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          });
-        }
-      }
-
-      if (missingStatusRecords.length === 0) {
-        setInitializingStatuses(false);
-        return;
-      }
-
-      const { data: insertedData, error: insertError } = await supabase
-        .from('event_statuses')
-        .insert(missingStatusRecords)
-        .select();
-
-      if (insertError) {
-        console.error('Error inserting missing statuses:', insertError);
-        toast.error('Failed to initialize some statuses');
-        setInitializingStatuses(false);
-        return;
-      }
-
-      const newStatusMap = { ...statusMap };
-      insertedData?.forEach((st: any) => {
-        newStatusMap[st.activity_id] = st;
-      });
-
-      setEventStatuses(newStatusMap);
-      
-      setActivities(prev => 
-        prev.map(activity => ({
-          ...activity,
-          status: newStatusMap[activity.id] || null
-        }))
-      );
-      
-      toast.success(`Initialized ${insertedData.length} missing statuses as Pending`);
-    } catch (error) {
-      console.error('Unexpected error initializing missing statuses:', error);
-      toast.error('Failed to initialize some statuses');
-    } finally {
-      setInitializingStatuses(false);
-    }
-  };
-
-  const handleStatusChange = async (activityId: string, newStatus: EventStatus) => {
-    const statusRecord = eventStatuses[activityId];
-    if (!statusRecord) {
-      toast.error('Status record not found');
-      return;
-    }
-
-    if (statusRecord.status === newStatus) {
-      return;
-    }
-
-    try {
-      setUpdatingStatus((prev) => ({ ...prev, [activityId]: true }));
-
       const { error } = await supabase
-        .from('event_statuses')
-        .update({ status: newStatus, status_updated_at: new Date().toISOString() })
-        .eq('id', statusRecord.id);
+        .from('activities')
+        .delete()
+        .eq('user_id', userId);
 
       if (error) throw error;
 
-      const updatedStatusRecord = { 
-        ...statusRecord, 
-        status: newStatus, 
-        status_updated_at: new Date().toISOString() 
-      };
-      
-      setEventStatuses((prev) => ({
-        ...prev,
-        [activityId]: updatedStatusRecord,
-      }));
-      
-      setActivities(prev => 
-        prev.map(activity => 
-          activity.id === activityId 
-            ? { ...activity, status: updatedStatusRecord } 
-            : activity
-        )
-      );
-
-      const label = STATUS_OPTIONS.find(o => o.value === newStatus)?.label || newStatus;
-      toast.success(`Status updated to ${label}`);
+      toast.success('All activities deleted successfully');
+      setShowDeleteConfirmation(false);
+      fetchActivities();
     } catch (error) {
-      console.error('Error updating status:', error);
-      toast.error('Failed to update status');
+      console.error('Error deleting activities:', error);
+      toast.error('Failed to delete activities');
     } finally {
-      setUpdatingStatus((prev) => ({ ...prev, [activityId]: false }));
+      setDeleting(false);
     }
   };
 
@@ -196,27 +76,6 @@ const TrackingEvents = () => {
       navigate('/login');
     } catch (error) {
       toast.error('Failed to log out');
-    }
-  };
-
-  const handleDeleteAllActivities = async () => {
-    setDeleting(true);
-    try {
-      const { error } = await supabase
-        .from('activities')
-        .delete()
-        .eq('user_id', (await supabase.auth.getSession()).data.session?.user.id);
-
-      if (error) throw error;
-
-      setActivities([]);
-      toast.success('All activities deleted successfully');
-      setShowDeleteConfirmation(false);
-    } catch (error) {
-      console.error('Error deleting activities:', error);
-      toast.error('Failed to delete activities');
-    } finally {
-      setDeleting(false);
     }
   };
 
@@ -252,20 +111,12 @@ const TrackingEvents = () => {
           </div>
 
           {activities.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500">No activities found. Import some activities from the Dashboard.</p>
-              <Button
-                className="mt-4"
-                onClick={() => navigate('/dashboard')}
-              >
-                Go to Dashboard
-              </Button>
-            </div>
+            <EmptyActivities />
           ) : (
             <ActivitiesTable 
               activities={activities}
               onStatusChange={handleStatusChange}
-              updatingStatus={updatingStatus}
+              updatingStatus={{}}
             />
           )}
         </div>
