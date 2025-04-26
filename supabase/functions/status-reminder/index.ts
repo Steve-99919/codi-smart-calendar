@@ -20,6 +20,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper function to create URL-safe base64 encoding
+function urlSafeBase64Encode(str: string): string {
+  // First do regular base64 encoding
+  let encoded = btoa(str);
+  // Then make it URL-safe by replacing + with - and / with _
+  encoded = encoded.replace(/\+/g, '-').replace(/\//g, '_');
+  // Remove any trailing = padding
+  encoded = encoded.replace(/=+$/, '');
+  return encoded;
+}
+
 const handleStatusReminders = async (): Promise<Response> => {
   try {
     console.log("Starting status reminder process");
@@ -112,12 +123,16 @@ const handleStatusReminders = async (): Promise<Response> => {
 
         console.log(`Preparing email for activity ${activity.activity_id} to ${email}`);
         const statusId = activity.event_statuses[0]?.id || null;
-        const verificationToken = btoa(`${activity.id}:${statusId || 'new'}`);
+        // Use the URL-safe encoding
+        const tokenPayload = `${activity.id}:${statusId || 'new'}`;
+        const verificationToken = urlSafeBase64Encode(tokenPayload);
         
         // Construct absolute URLs with the hardcoded domain
         const confirmUrl = `${APP_URL}/status-confirm?token=${verificationToken}&status=done`;
         const delayUrl = `${APP_URL}/status-confirm?token=${verificationToken}&status=delayed`;
 
+        console.log("Token payload:", tokenPayload);
+        console.log("URL-safe encoded token:", verificationToken);
         console.log("Confirmation URL:", confirmUrl);
         console.log("Delay URL:", delayUrl);
 

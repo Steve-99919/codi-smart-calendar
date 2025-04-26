@@ -37,27 +37,39 @@ const StatusConfirm = () => {
         // Decode token (format: activityId:statusId)
         let activityId, statusId;
         try {
+          // First try standard base64 decoding
           const decoded = atob(token);
           console.log("Decoded token:", decoded);
           [activityId, statusId] = decoded.split(':');
-          console.log("ActivityId:", activityId, "StatusId:", statusId);
         } catch (e) {
-          console.error("Token decoding error:", e);
-          throw new Error('Invalid token format');
+          console.error("Failed with standard base64 decoding, trying URL-safe decoding:", e);
+          
+          // If standard decoding fails, try URL-safe base64 decoding
+          try {
+            // Replace URL-safe chars and add padding if needed
+            const base64 = token.replace(/-/g, '+').replace(/_/g, '/');
+            const paddedBase64 = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, '=');
+            const decoded = atob(paddedBase64);
+            console.log("Decoded token with URL-safe method:", decoded);
+            [activityId, statusId] = decoded.split(':');
+          } catch (e2) {
+            console.error("Token decoding failed with both methods:", e2);
+            throw new Error('Invalid token format');
+          }
         }
-
-        // Important: Skip authentication for this specific endpoint
-        // This allows the status update to work even when the user isn't logged in
+        
+        console.log("ActivityId:", activityId, "StatusId:", statusId);
+        
+        if (!activityId) {
+          throw new Error('Missing activity ID in token');
+        }
 
         // If statusId is 'new', we need to create a new status record
         if (statusId === 'new') {
           console.log("Creating new status record for activity:", activityId);
           
-          // Use the service role key for this operation (bypassing RLS)
-          const adminClient = supabase;
-          
-          // First, verify the activity exists - don't use single() as it throws errors if not found
-          const { data: activity, error: activityError } = await adminClient
+          // First, verify the activity exists
+          const { data: activity, error: activityError } = await supabase
             .from('activities')
             .select('*')
             .eq('id', activityId)
@@ -65,30 +77,30 @@ const StatusConfirm = () => {
 
           if (activityError) {
             console.error("Activity fetch error:", activityError);
-            throw activityError;
+            throw new Error(`Database error: ${activityError.message}`);
           }
 
           if (!activity) {
             console.error("Activity not found with ID:", activityId);
-            throw new Error(`Activity with ID ${activityId} not found`);
+            throw new Error(`Activity with ID ${activityId} not found. This may be because the activity was deleted or the token is invalid.`);
           }
 
           console.log("Activity found:", activity);
 
           // Create new status record
-          const { data, error: insertError } = await adminClient
+          const { data, error: insertError } = await supabase
             .from('event_statuses')
             .insert({
               activity_id: activityId,
               status: status,
               status_updated_at: new Date().toISOString(),
-              event_type: 'activity', // Adding the required event_type field
+              event_type: 'activity',
             })
             .select();
 
           if (insertError) {
             console.error("Status insert error:", insertError);
-            throw insertError;
+            throw new Error(`Failed to create status record: ${insertError.message}`);
           }
 
           console.log("New status created:", data);
@@ -96,11 +108,8 @@ const StatusConfirm = () => {
         } else {
           console.log("Updating existing status record:", statusId);
           
-          // Use the service role key for this operation (bypassing RLS)
-          const adminClient = supabase;
-          
           // Verify the status record exists
-          const { data: statusRecord, error: statusError } = await adminClient
+          const { data: statusRecord, error: statusError } = await supabase
             .from('event_statuses')
             .select('*')
             .eq('id', statusId)
@@ -108,16 +117,48 @@ const StatusConfirm = () => {
             
           if (statusError) {
             console.error("Status fetch error:", statusError);
-            throw statusError;
+            throw new Error(`Database error: ${statusError.message}`);
           }
           
           if (!statusRecord) {
             console.error("Status record not found with ID:", statusId);
-            throw new Error(`Status record with ID ${statusId} not found`);
+            
+            // If status record doesn't exist, we should check if the activity exists
+            const { data: activity, error: activityError } = await supabase
+              .from('activities')
+              .select('*')
+              .eq('id', activityId)
+              .maybeSingle();
+            
+            if (activityError || !activity) {
+              console.error("Activity not found with ID:", activityId);
+              throw new Error(`Activity with ID ${activityId} not found. This may be because the activity was deleted.`);
+            }
+            
+            // If activity exists but status doesn't, create a new status
+            console.log("Activity exists but status doesn't, creating new status");
+            const { data, error: insertError } = await supabase
+              .from('event_statuses')
+              .insert({
+                activity_id: activityId,
+                status: status,
+                status_updated_at: new Date().toISOString(),
+                event_type: 'activity',
+              })
+              .select();
+              
+            if (insertError) {
+              console.error("Status insert error:", insertError);
+              throw new Error(`Failed to create status record: ${insertError.message}`);
+            }
+            
+            console.log("New status created:", data);
+            setSuccess(true);
+            return;
           }
           
           // Update existing status record
-          const { error: updateError } = await adminClient
+          const { error: updateError } = await supabase
             .from('event_statuses')
             .update({ 
               status: status,
@@ -127,7 +168,7 @@ const StatusConfirm = () => {
 
           if (updateError) {
             console.error("Status update error:", updateError);
-            throw updateError;
+            throw new Error(`Failed to update status: ${updateError.message}`);
           }
 
           console.log("Status updated successfully");
