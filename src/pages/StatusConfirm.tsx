@@ -15,11 +15,12 @@ const StatusConfirm = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [activityName, setActivityName] = useState<string | null>(null);
 
   useEffect(() => {
-    const updateStatus = async () => {
+    const processStatus = async () => {
       if (!token || !status) {
-        setError('Invalid parameters');
+        setError('Missing required parameters');
         setLoading(false);
         return;
       }
@@ -31,149 +32,18 @@ const StatusConfirm = () => {
       }
 
       try {
-        console.log("Processing token:", token);
-        console.log("Status:", status);
+        // Call the edge function directly
+        const response = await fetch(`https://pueoiaivzdbhiygylkok.supabase.co/functions/v1/update-activity-status?token=${token}&status=${status}`);
         
-        // Decode token (format: activityId:statusId)
-        let activityId, statusId;
-        try {
-          // First try standard base64 decoding
-          const decoded = atob(token);
-          console.log("Decoded token:", decoded);
-          [activityId, statusId] = decoded.split(':');
-        } catch (e) {
-          console.error("Failed with standard base64 decoding, trying URL-safe decoding:", e);
-          
-          // If standard decoding fails, try URL-safe base64 decoding
-          try {
-            // Replace URL-safe chars and add padding if needed
-            const base64 = token.replace(/-/g, '+').replace(/_/g, '/');
-            const paddedBase64 = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, '=');
-            const decoded = atob(paddedBase64);
-            console.log("Decoded token with URL-safe method:", decoded);
-            [activityId, statusId] = decoded.split(':');
-          } catch (e2) {
-            console.error("Token decoding failed with both methods:", e2);
-            throw new Error('Invalid token format');
-          }
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to update status');
         }
         
-        console.log("ActivityId:", activityId, "StatusId:", statusId);
-        
-        if (!activityId) {
-          throw new Error('Missing activity ID in token');
-        }
-
-        // If statusId is 'new', we need to create a new status record
-        if (statusId === 'new') {
-          console.log("Creating new status record for activity:", activityId);
-          
-          // First, verify the activity exists
-          const { data: activity, error: activityError } = await supabase
-            .from('activities')
-            .select('*')
-            .eq('id', activityId)
-            .maybeSingle();
-
-          if (activityError) {
-            console.error("Activity fetch error:", activityError);
-            throw new Error(`Database error: ${activityError.message}`);
-          }
-
-          if (!activity) {
-            console.error("Activity not found with ID:", activityId);
-            throw new Error(`Activity with ID ${activityId} not found. This may be because the activity was deleted or the token is invalid.`);
-          }
-
-          console.log("Activity found:", activity);
-
-          // Create new status record
-          const { data, error: insertError } = await supabase
-            .from('event_statuses')
-            .insert({
-              activity_id: activityId,
-              status: status,
-              status_updated_at: new Date().toISOString(),
-              event_type: 'activity',
-            })
-            .select();
-
-          if (insertError) {
-            console.error("Status insert error:", insertError);
-            throw new Error(`Failed to create status record: ${insertError.message}`);
-          }
-
-          console.log("New status created:", data);
-          setSuccess(true);
-        } else {
-          console.log("Updating existing status record:", statusId);
-          
-          // Verify the status record exists
-          const { data: statusRecord, error: statusError } = await supabase
-            .from('event_statuses')
-            .select('*')
-            .eq('id', statusId)
-            .maybeSingle();
-            
-          if (statusError) {
-            console.error("Status fetch error:", statusError);
-            throw new Error(`Database error: ${statusError.message}`);
-          }
-          
-          if (!statusRecord) {
-            console.error("Status record not found with ID:", statusId);
-            
-            // If status record doesn't exist, we should check if the activity exists
-            const { data: activity, error: activityError } = await supabase
-              .from('activities')
-              .select('*')
-              .eq('id', activityId)
-              .maybeSingle();
-            
-            if (activityError || !activity) {
-              console.error("Activity not found with ID:", activityId);
-              throw new Error(`Activity with ID ${activityId} not found. This may be because the activity was deleted.`);
-            }
-            
-            // If activity exists but status doesn't, create a new status
-            console.log("Activity exists but status doesn't, creating new status");
-            const { data, error: insertError } = await supabase
-              .from('event_statuses')
-              .insert({
-                activity_id: activityId,
-                status: status,
-                status_updated_at: new Date().toISOString(),
-                event_type: 'activity',
-              })
-              .select();
-              
-            if (insertError) {
-              console.error("Status insert error:", insertError);
-              throw new Error(`Failed to create status record: ${insertError.message}`);
-            }
-            
-            console.log("New status created:", data);
-            setSuccess(true);
-            return;
-          }
-          
-          // Update existing status record
-          const { error: updateError } = await supabase
-            .from('event_statuses')
-            .update({ 
-              status: status,
-              status_updated_at: new Date().toISOString()
-            })
-            .eq('id', statusId);
-
-          if (updateError) {
-            console.error("Status update error:", updateError);
-            throw new Error(`Failed to update status: ${updateError.message}`);
-          }
-
-          console.log("Status updated successfully");
-          setSuccess(true);
-        }
+        setSuccess(true);
+        setActivityName(result.activity);
+        console.log('Status update successful:', result);
       } catch (err: any) {
         console.error('Error updating status:', err);
         setError(err.message || 'Failed to update status');
@@ -182,7 +52,7 @@ const StatusConfirm = () => {
       }
     };
 
-    updateStatus();
+    processStatus();
   }, [token, status]);
 
   const handleGoToDashboard = () => {
@@ -228,9 +98,17 @@ const StatusConfirm = () => {
               <CheckCircle className="h-16 w-16" />
               <h2 className="mt-4 text-xl font-semibold">Status Updated Successfully</h2>
               <p className="mt-2">
-                {status === 'done' 
-                  ? 'The activity status has been updated to "Done".' 
-                  : 'The activity status has been updated to "Delayed".'}
+                {activityName ? (
+                  <>
+                    The status for activity "{activityName}" has been updated to{" "}
+                    <strong>{status === 'done' ? 'Done' : 'Delayed'}</strong>.
+                  </>
+                ) : (
+                  <>
+                    The activity status has been updated to{" "}
+                    <strong>{status === 'done' ? 'Done' : 'Delayed'}</strong>.
+                  </>
+                )}
               </p>
               <Button 
                 className="mt-6"
