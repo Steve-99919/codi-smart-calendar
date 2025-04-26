@@ -83,8 +83,6 @@ const TrackingEvents = () => {
     setInitializingStatuses(true);
 
     try {
-      const eventType = 'activity';
-      
       const missingStatusRecords = [];
 
       for (const activity of activitiesData) {
@@ -93,7 +91,7 @@ const TrackingEvents = () => {
             activity_id: activity.id,
             status: 'pending',
             status_updated_at: null,
-            event_type: eventType,
+            event_type: 'activity',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           });
