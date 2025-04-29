@@ -1,0 +1,154 @@
+
+import { useState } from 'react';
+import { CSVRow } from '@/types/csv';
+import { format } from "date-fns";
+import { toast } from "sonner";
+import { isWeekend, isPublicHoliday, isValidDateFormat } from '@/utils/dateUtils';
+import { getNextNumber } from '@/services/activityDataService';
+
+interface UseActivityFormStateProps {
+  data: CSVRow[];
+  activityIdPrefix: string;
+  allowWeekends: boolean;
+  allowHolidays: boolean;
+}
+
+export const useActivityFormState = ({
+  data,
+  activityIdPrefix,
+  allowWeekends,
+  allowHolidays
+}: UseActivityFormStateProps) => {
+  const [selectedPrepDate, setSelectedPrepDate] = useState<Date>();
+  const [selectedGoDate, setSelectedGoDate] = useState<Date>();
+  const [isProcessingActivity, setIsProcessingActivity] = useState(false);
+  const [newActivity, setNewActivity] = useState<CSVRow>({
+    activityId: `${activityIdPrefix}${getNextNumber(data, activityIdPrefix)}`,
+    activityName: "",
+    description: "",
+    strategy: "",
+    prepDate: "",
+    goDate: "",
+    isWeekend: false,
+    isHoliday: false
+  });
+
+  const handlePrepDateSelect = (date: Date | undefined) => {
+    setSelectedPrepDate(date);
+    if (date) {
+      const formattedDate = format(date, 'dd/MM/yyyy');
+      const isDateOnWeekend = isWeekend(formattedDate);
+      const isDateOnHoliday = isPublicHoliday(formattedDate);
+      
+      if (isDateOnWeekend && !allowWeekends) {
+        toast.error("You have selected a weekend date. Please enable weekend dates in preferences or select another date.");
+        setSelectedPrepDate(undefined);
+        return;
+      }
+      
+      if (isDateOnHoliday && !allowHolidays) {
+        toast.error("You have selected a public holiday. Please enable holiday dates in preferences or select another date.");
+        setSelectedPrepDate(undefined);
+        return;
+      }
+      
+      setNewActivity(prev => ({
+        ...prev,
+        prepDate: formattedDate
+      }));
+    }
+  };
+
+  const handleGoDateSelect = (date: Date | undefined) => {
+    setSelectedGoDate(date);
+    if (date) {
+      const formattedDate = format(date, 'dd/MM/yyyy');
+      const isDateOnWeekend = isWeekend(formattedDate);
+      const isDateOnHoliday = isPublicHoliday(formattedDate);
+      
+      if (isDateOnWeekend && !allowWeekends) {
+        toast.error("You have selected a weekend date. Please enable weekend dates in preferences or select another date.");
+        setSelectedGoDate(undefined);
+        return;
+      }
+      
+      if (isDateOnHoliday && !allowHolidays) {
+        toast.error("You have selected a public holiday. Please enable holiday dates in preferences or select another date.");
+        setSelectedGoDate(undefined);
+        return;
+      }
+      
+      setNewActivity(prev => ({
+        ...prev,
+        goDate: formattedDate
+      }));
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setNewActivity({
+      ...newActivity,
+      [name]: value
+    });
+  };
+
+  const validateForm = () => {
+    if (!newActivity.activityName || 
+        !newActivity.prepDate || !newActivity.goDate) {
+      toast.error("Please fill in all required fields");
+      return false;
+    }
+
+    if (!isValidDateFormat(newActivity.prepDate) || !isValidDateFormat(newActivity.goDate)) {
+      toast.error("Please enter dates in dd/mm/yyyy format");
+      return false;
+    }
+
+    // Validate weekend and holiday restrictions
+    const isPrepWeekend = isWeekend(newActivity.prepDate);
+    const isGoWeekend = isWeekend(newActivity.goDate);
+    const isPrepHoliday = isPublicHoliday(newActivity.prepDate);
+    const isGoHoliday = isPublicHoliday(newActivity.goDate);
+
+    if ((isPrepWeekend || isGoWeekend) && !allowWeekends) {
+      toast.error("One or more selected dates fall on a weekend. Please enable weekend dates in preferences or select different dates.");
+      return false;
+    }
+
+    if ((isPrepHoliday || isGoHoliday) && !allowHolidays) {
+      toast.error("One or more selected dates fall on a public holiday. Please enable holiday dates in preferences or select different dates.");
+      return false;
+    }
+
+    return true;
+  };
+
+  const resetForm = () => {
+    setNewActivity({
+      activityId: `${activityIdPrefix}${getNextNumber(data, activityIdPrefix)}`,
+      activityName: "",
+      description: "",
+      strategy: "",
+      prepDate: "",
+      goDate: "",
+      isWeekend: false,
+      isHoliday: false
+    });
+    setSelectedPrepDate(undefined);
+    setSelectedGoDate(undefined);
+  };
+
+  return {
+    selectedPrepDate,
+    selectedGoDate,
+    newActivity,
+    isProcessingActivity,
+    setIsProcessingActivity,
+    handlePrepDateSelect,
+    handleGoDateSelect,
+    handleInputChange,
+    validateForm,
+    resetForm
+  };
+};

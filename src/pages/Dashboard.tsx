@@ -1,26 +1,34 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
 import { supabase } from '@/integrations/supabase/client';
 import CSVUpload from '@/components/CSVUpload';
 import CSVTable from '@/components/CSVTable';
-import { parseCSV } from '@/utils/csvUtils';
-import { CSVRow } from '@/types/csv';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import DashboardActions from '@/components/dashboard/DashboardActions';
 import SubscriptionDialog from '@/components/dashboard/SubscriptionDialog';
-import { isDateBefore } from '@/utils/dateUtils';
-
-const LOCAL_STORAGE_KEY = 'dashboard_csv_data';
+import { useCSVPersistence } from '@/hooks/useCSVPersistence';
+import { checkExistingActivities, saveActivitiesToDatabase, exportCSVFile } from '@/services/activityService';
+import { addActivity } from '@/services/activityDataService';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [csvData, setCsvData] = useState<CSVRow[]>([]);
-  const [hasUploadedFile, setHasUploadedFile] = useState(false);
-  const [savingToDatabase, setSavingToDatabase] = useState(false);
   const [showTrackingSubscriptionDialog, setShowTrackingSubscriptionDialog] = useState(false);
+  const [savingToDatabase, setSavingToDatabase] = useState(false);
+  
+  // Use our custom hook for CSV data persistence
+  const {
+    csvData,
+    setCsvData,
+    hasUploadedFile,
+    setHasUploadedFile,
+    handleFileLoaded,
+    updateData,
+    clearData
+  } = useCSVPersistence();
 
   useEffect(() => {
     const checkSession = async () => {
@@ -32,19 +40,6 @@ const Dashboard = () => {
           return;
         }
         setUserEmail(data.session.user.email);
-        
-        // Load saved CSV data from localStorage after confirming user is logged in
-        const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (savedData) {
-          try {
-            const parsedData = JSON.parse(savedData);
-            setCsvData(parsedData);
-            setHasUploadedFile(parsedData.length > 0);
-          } catch (error) {
-            console.error('Error parsing saved CSV data:', error);
-            localStorage.removeItem(LOCAL_STORAGE_KEY);
-          }
-        }
       } catch (error) {
         console.error('Error checking authentication:', error);
         navigate('/login');
@@ -56,17 +51,9 @@ const Dashboard = () => {
     checkSession();
   }, [navigate]);
 
-  // Save CSV data to localStorage whenever it changes
-  useEffect(() => {
-    if (csvData.length > 0) {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(csvData));
-    }
-  }, [csvData]);
-
   const handleLogout = async () => {
     try {
-      // Clear saved CSV data on logout
-      localStorage.removeItem(LOCAL_STORAGE_KEY);
+      clearData(); // Clear saved CSV data on logout
       await supabase.auth.signOut();
       toast.success('Logged out successfully');
       navigate('/login');
@@ -75,42 +62,6 @@ const Dashboard = () => {
     }
   };
 
-  const handleFileLoaded = (content: string) => {
-    try {
-      const parsedData = parseCSV(content);
-      if (parsedData.length === 0) {
-        toast.error('No valid data found in CSV file');
-        return;
-      }
-      
-      const processedData = parsedData.map((row, index) => {
-        const match = row.activityId.match(/([A-Za-z]+)(\d+)/);
-        if (!match) {
-          return {
-            ...row,
-            activityId: `A${index + 1}`
-          };
-        }
-        return row;
-      });
-      
-      setCsvData(processedData);
-      setHasUploadedFile(true);
-      toast.success(`Successfully loaded ${processedData.length} rows of data`);
-      
-      // Save to localStorage
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(processedData));
-    } catch (error) {
-      console.error('Error parsing CSV:', error);
-      toast.error('Failed to parse CSV file');
-    }
-  };
-
-  const handleUpdateData = (newData: CSVRow[]) => {
-    setCsvData(newData);
-    // localStorage is updated via useEffect when csvData changes
-  };
-  
   const handleTrackButtonClick = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -119,15 +70,9 @@ const Dashboard = () => {
         return;
       }
 
-      const { data: existingActivities, error: checkError } = await supabase
-        .from('activities')
-        .select('id')
-        .eq('user_id', session.user.id)
-        .limit(1);
-
-      if (checkError) throw checkError;
-
-      if (existingActivities && existingActivities.length > 0) {
+      const hasExistingActivities = await checkExistingActivities(session.user.id);
+      
+      if (hasExistingActivities) {
         toast.error('Please delete existing activities in the Tracking page before adding new ones');
         return;
       }
@@ -139,92 +84,9 @@ const Dashboard = () => {
     }
   };
 
-  const handleExportCSV = () => {
-    if (csvData.length === 0) {
-      toast.error('No data to export');
-      return;
-    }
-
-    const headers = ['Activity ID,Activity Name,Description,Strategy,PREP Date,GO Date'];
-    const rows = csvData.map(row => 
-      `${row.activityId},${row.activityName},${row.description},${row.strategy},${row.prepDate},${row.goDate}`
-    );
-    const csvContent = `${headers}\n${rows.join('\n')}`;
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `activities_export_${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    toast.success('CSV file exported successfully');
-  };
-
-  const parseActivityId = (id: string) => {
-    const match = id.match(/([A-Za-z]+)(\d+)/);
-    return match ? { prefix: match[1], number: parseInt(match[2]) } : null;
-  };
-
   const handleAddActivity = (newActivity: CSVRow) => {
-    const newData = [...csvData];
-    
-    const insertIndex = newData.findIndex(
-      item => !isDateBefore(item.prepDate, newActivity.prepDate)
-    );
-    
-    if (insertIndex >= 0) {
-      newData.splice(insertIndex, 0, newActivity);
-      
-      const prefixGroups = new Map<string, CSVRow[]>();
-      
-      newData.forEach(row => {
-        const parsed = parseActivityId(row.activityId);
-        if (parsed) {
-          const { prefix } = parsed;
-          if (!prefixGroups.has(prefix)) {
-            prefixGroups.set(prefix, []);
-          }
-          prefixGroups.get(prefix)?.push(row);
-        }
-      });
-      
-      prefixGroups.forEach((rows, prefix) => {
-        rows.sort((a, b) => {
-          if (a.prepDate !== b.prepDate) {
-            return isDateBefore(a.prepDate, b.prepDate) ? -1 : 1;
-          }
-          return 0;
-        });
-        
-        rows.forEach((row, idx) => {
-          row.activityId = `${prefix}${idx + 1}`;
-        });
-      });
-    } else {
-      newData.push(newActivity);
-      
-      const parsed = parseActivityId(newActivity.activityId);
-      if (parsed) {
-        const samePrefix = newData.filter(row => {
-          const p = parseActivityId(row.activityId);
-          return p?.prefix === parsed.prefix;
-        });
-        
-        const numbers = samePrefix
-          .map(row => {
-            const p = parseActivityId(row.activityId);
-            return p ? p.number : 0;
-          })
-          .filter(num => num > 0);
-        
-        const maxNumber = numbers.length > 0 ? Math.max(...numbers) : 0;
-        newActivity.activityId = `${parsed.prefix}${maxNumber + 1}`;
-      }
-    }
-    
-    setCsvData(newData);
+    const updatedData = addActivity(csvData, newActivity);
+    setCsvData(updatedData);
     toast.success(`Successfully added activity: ${newActivity.activityName}`);
   };
   
@@ -243,20 +105,6 @@ const Dashboard = () => {
     try {
       setSavingToDatabase(true);
       
-      const formattedData = csvData.map(row => {
-        const prepParts = row.prepDate.split('/');
-        const goParts = row.goDate.split('/');
-        
-        return {
-          activity_id: row.activityId,
-          activity_name: row.activityName,
-          description: row.description,
-          strategy: row.strategy,
-          prep_date: `${prepParts[2]}-${prepParts[1]}-${prepParts[0]}`,
-          go_date: `${goParts[2]}-${goParts[1]}-${goParts[0]}`
-        };
-      });
-      
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         toast.error('You must be logged in to save activities');
@@ -264,33 +112,15 @@ const Dashboard = () => {
         return;
       }
       
-      const activitiesWithUserId = formattedData.map(activity => ({
-        ...activity,
-        user_id: session.user.id
-      }));
+      await saveActivitiesToDatabase(csvData, session.user.id, () => {
+        // On success callback
+      });
       
-      const { error } = await supabase
-        .from('activities')
-        .insert(activitiesWithUserId);
-      
-      if (error) throw error;
-      
-      toast.success(`Successfully saved ${csvData.length} activities to database`);
-      toast.info('You can now track these activities in the Tracking Events page');
-      
-    } catch (error: any) {
-      console.error('Error saving to database:', error);
-      toast.error(`Failed to save to database: ${error.message || 'Unknown error'}`);
+    } catch (error) {
+      console.error('Error in save to database process:', error);
     } finally {
       setSavingToDatabase(false);
     }
-  };
-
-  const handleUploadAnother = () => {
-    setCsvData([]);
-    setHasUploadedFile(false);
-    // Clear localStorage data
-    localStorage.removeItem(LOCAL_STORAGE_KEY);
   };
 
   if (loading) {
@@ -315,8 +145,8 @@ const Dashboard = () => {
               <DashboardActions
                 onAddActivity={handleAddActivity}
                 data={csvData}
-                onExportCSV={handleExportCSV}
-                onUploadAnother={handleUploadAnother}
+                onExportCSV={() => exportCSVFile(csvData)}
+                onUploadAnother={clearData}
                 onTrackCSV={handleTrackButtonClick}
                 savingToDatabase={savingToDatabase}
               />
@@ -324,7 +154,7 @@ const Dashboard = () => {
               {csvData.length > 0 ? (
                 <CSVTable
                   data={csvData}
-                  onUpdateData={handleUpdateData}
+                  onUpdateData={updateData}
                 />
               ) : (
                 <p className="text-center py-8 text-gray-500">No data available</p>
