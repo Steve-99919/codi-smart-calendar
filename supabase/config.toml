@@ -3,3 +3,6 @@ project_id = "pueoiaivzdbhiygylkok"
 
 [functions.update-activity-status]
 verify_jwt = false
+
+[functions.status-reminder]
+verify_jwt = false

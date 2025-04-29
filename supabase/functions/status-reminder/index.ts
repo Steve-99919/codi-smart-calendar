@@ -38,14 +38,16 @@ const handleStatusReminders = async (): Promise<Response> => {
     // Get current date
     const now = new Date();
     console.log(`Current date and time: ${now.toISOString()}`);
+    console.log(`Current UTC date: ${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`);
     
+    // Calculate yesterday in YYYY-MM-DD format for database query
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayFormatted = yesterday.toISOString().split('T')[0];
     
     console.log(`Checking for prep dates that were yesterday: ${yesterdayFormatted}`);
     
-    // Get activities whose prep_date was yesterday and are still pending
+    // Get activities whose prep_date was yesterday
     const { data: activities, error: activitiesError } = await supabase
       .from('activities')
       .select(`
@@ -127,7 +129,7 @@ const handleStatusReminders = async (): Promise<Response> => {
         const tokenPayload = `${activity.id}:${statusId || 'new'}`;
         const verificationToken = urlSafeBase64Encode(tokenPayload);
         
-        // Updated URLs to point to our status-confirm page instead of the edge function
+        // URLs to point to our status-confirm page
         const confirmUrl = `${APP_URL}/status-confirm?token=${verificationToken}&status=done`;
         const delayUrl = `${APP_URL}/status-confirm?token=${verificationToken}&status=delayed`;
 
