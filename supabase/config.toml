@@ -6,3 +6,6 @@ verify_jwt = false
 
 [functions.status-reminder]
 verify_jwt = false
+
+[functions.test-reminder]
+verify_jwt = false
