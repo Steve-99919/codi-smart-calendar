@@ -11,6 +11,8 @@ import DashboardActions from '@/components/dashboard/DashboardActions';
 import SubscriptionDialog from '@/components/dashboard/SubscriptionDialog';
 import { isDateBefore } from '@/utils/dateUtils';
 
+const LOCAL_STORAGE_KEY = 'dashboard_csv_data';
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -30,6 +32,19 @@ const Dashboard = () => {
           return;
         }
         setUserEmail(data.session.user.email);
+        
+        // Load saved CSV data from localStorage after confirming user is logged in
+        const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (savedData) {
+          try {
+            const parsedData = JSON.parse(savedData);
+            setCsvData(parsedData);
+            setHasUploadedFile(parsedData.length > 0);
+          } catch (error) {
+            console.error('Error parsing saved CSV data:', error);
+            localStorage.removeItem(LOCAL_STORAGE_KEY);
+          }
+        }
       } catch (error) {
         console.error('Error checking authentication:', error);
         navigate('/login');
@@ -41,8 +56,17 @@ const Dashboard = () => {
     checkSession();
   }, [navigate]);
 
+  // Save CSV data to localStorage whenever it changes
+  useEffect(() => {
+    if (csvData.length > 0) {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(csvData));
+    }
+  }, [csvData]);
+
   const handleLogout = async () => {
     try {
+      // Clear saved CSV data on logout
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
       await supabase.auth.signOut();
       toast.success('Logged out successfully');
       navigate('/login');
@@ -73,6 +97,9 @@ const Dashboard = () => {
       setCsvData(processedData);
       setHasUploadedFile(true);
       toast.success(`Successfully loaded ${processedData.length} rows of data`);
+      
+      // Save to localStorage
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(processedData));
     } catch (error) {
       console.error('Error parsing CSV:', error);
       toast.error('Failed to parse CSV file');
@@ -81,6 +108,7 @@ const Dashboard = () => {
 
   const handleUpdateData = (newData: CSVRow[]) => {
     setCsvData(newData);
+    // localStorage is updated via useEffect when csvData changes
   };
   
   const handleTrackButtonClick = async () => {
@@ -258,6 +286,13 @@ const Dashboard = () => {
     }
   };
 
+  const handleUploadAnother = () => {
+    setCsvData([]);
+    setHasUploadedFile(false);
+    // Clear localStorage data
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
@@ -281,10 +316,7 @@ const Dashboard = () => {
                 onAddActivity={handleAddActivity}
                 data={csvData}
                 onExportCSV={handleExportCSV}
-                onUploadAnother={() => {
-                  setCsvData([]);
-                  setHasUploadedFile(false);
-                }}
+                onUploadAnother={handleUploadAnother}
                 onTrackCSV={handleTrackButtonClick}
                 savingToDatabase={savingToDatabase}
               />
