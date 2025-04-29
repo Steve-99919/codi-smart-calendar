@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
@@ -11,6 +10,7 @@ import SubscriptionDialog from '@/components/dashboard/SubscriptionDialog';
 import { useCSVPersistence } from '@/hooks/useCSVPersistence';
 import { checkExistingActivities, saveActivitiesToDatabase, exportCSVFile } from '@/services/activityService';
 import { addActivity } from '@/services/activityDataService';
+import { CSVRow } from '@/types/csv';
 
 const Dashboard = () => {
   const navigate = useNavigate();
