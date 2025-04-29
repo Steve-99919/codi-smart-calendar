@@ -9,6 +9,7 @@ import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import DeleteConfirmationDialog from '@/components/tracking/DeleteConfirmationDialog';
 import ActivitiesTable from '@/components/tracking/ActivitiesTable';
 import EmptyActivities from '@/components/tracking/EmptyActivities';
+import PerformanceMetrics from '@/components/tracking/PerformanceMetrics';
 import { useActivities } from '@/hooks/useActivities';
 
 const TrackingEvents = () => {
@@ -109,6 +110,10 @@ const TrackingEvents = () => {
               </Button>
             )}
           </div>
+
+          {activities.length > 0 && (
+            <PerformanceMetrics activities={activities} />
+          )}
 
           {activities.length === 0 ? (
             <EmptyActivities />
