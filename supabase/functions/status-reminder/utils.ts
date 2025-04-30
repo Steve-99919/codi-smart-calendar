@@ -100,15 +100,15 @@ export async function fetchYesterdayGoDateActivities(supabase: ReturnType<typeof
   return { activities, yesterdayFormatted };
 }
 
-// Function to filter activities that are still pending (now "upcoming")
+// Function to filter activities that are still upcoming
 export function filterPendingActivities(activities: Activity[]) {
-  const pendingActivities = activities?.filter(activity => {
+  const upcomingActivities = activities?.filter(activity => {
     const statuses = activity.event_statuses;
-    return statuses.length === 0 || statuses[0].status === 'pending' || statuses[0].status === 'upcoming';
+    return statuses.length === 0 || statuses[0].status === 'upcoming';
   });
 
-  console.log(`${pendingActivities?.length || 0} activities still pending/upcoming`);
-  return pendingActivities;
+  console.log(`${upcomingActivities?.length || 0} activities still upcoming`);
+  return upcomingActivities;
 }
 
 // Function to get user emails for the activities

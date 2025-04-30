@@ -23,7 +23,7 @@ const handleStatusReminders = async (): Promise<Response> => {
     // Step 1: Fetch activities with yesterday's prep date
     const { activities: prepDateActivities } = await fetchYesterdayActivities(supabase);
 
-    // Step 2: Filter for pending (now "upcoming") activities
+    // Step 2: Filter for upcoming activities
     const upcomingActivities = filterPendingActivities(prepDateActivities);
 
     // Step 3: Process prep date emails if there are any upcoming activities

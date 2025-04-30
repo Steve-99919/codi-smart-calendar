@@ -10,49 +10,28 @@ interface PerformanceMetricsProps {
 
 const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({ activities }) => {
   // Calculate metrics
-  // Include both new and legacy status types in the record
-  const statusCounts: Record<string, number> = {
+  const statusCounts: Record<EventStatus, number> = {
     upcoming: 0,
     completed: 0,
-    delayed: 0,
-    pending: 0, // legacy status
-    done: 0     // legacy status
+    delayed: 0
   };
 
   activities.forEach(activity => {
     if (activity.status) {
-      // Get the status value as string to handle both old and new status values
-      const statusValue = activity.status.status as string;
+      // Get the status and normalize it
+      let status = activity.status.status as string;
       
-      // Map old status names to new ones
-      let mappedStatus: string;
-      if (statusValue === 'pending') {
-        mappedStatus = 'upcoming';
-        // Count both the legacy and mapped status
-        statusCounts['pending'] = (statusCounts['pending'] || 0) + 1;
-        statusCounts['upcoming'] = (statusCounts['upcoming'] || 0) + 1;
-      } else if (statusValue === 'done') {
-        mappedStatus = 'completed';
-        // Count both the legacy and mapped status
-        statusCounts['done'] = (statusCounts['done'] || 0) + 1;
-        statusCounts['completed'] = (statusCounts['completed'] || 0) + 1;
-      } else {
-        mappedStatus = statusValue;
-        // Count the standard status
-        statusCounts[mappedStatus] = (statusCounts[mappedStatus] || 0) + 1;
-      }
+      // Handle any legacy values that might still be in memory
+      if (status === 'pending') status = 'upcoming';
+      if (status === 'done') status = 'completed';
+      
+      // Count the status
+      statusCounts[status as EventStatus] = (statusCounts[status as EventStatus] || 0) + 1;
     } else {
       // Default to upcoming if no status
       statusCounts.upcoming += 1;
     }
   });
-
-  // Display counts for the UI
-  const displayCounts = {
-    upcoming: statusCounts.upcoming + statusCounts.pending,
-    completed: statusCounts.completed + statusCounts.done,
-    delayed: statusCounts.delayed
-  };
 
   const totalActivities = activities.length;
   
@@ -101,21 +80,21 @@ const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({ activities }) =
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <MetricCard 
           title="Upcoming Activities" 
-          count={displayCounts.upcoming} 
+          count={statusCounts.upcoming} 
           icon={Clock} 
           color="text-orange-500"
           bgColor="bg-orange-100"
         />
         <MetricCard 
           title="Completed Activities" 
-          count={displayCounts.completed} 
+          count={statusCounts.completed} 
           icon={Check} 
           color="text-green-500"
           bgColor="bg-green-100"
         />
         <MetricCard 
           title="Delayed Activities" 
-          count={displayCounts.delayed} 
+          count={statusCounts.delayed} 
           icon={ActivityIcon} 
           color="text-red-500"
           bgColor="bg-red-100"

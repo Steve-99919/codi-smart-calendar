@@ -14,7 +14,7 @@ const corsHeaders = {
 };
 
 // Valid status values - must match EventStatus type in frontend
-const VALID_STATUSES = ['upcoming', 'completed', 'delayed', 'pending', 'done'];
+const VALID_STATUSES = ['upcoming', 'completed', 'delayed'];
 
 function urlSafeBase64Decode(str: string): string {
   let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
@@ -31,13 +31,6 @@ function urlSafeBase64Decode(str: string): string {
 
 // Map external status names to internal database status names
 function mapStatusToInternal(status: string): string {
-  if (status === 'pending') return 'upcoming';
-  if (status === 'done') return 'completed';
-  return status;
-}
-
-// Map internal database status names to EventStatus type values
-function mapStatusToEventType(status: string): string {
   if (status === 'pending') return 'upcoming';
   if (status === 'done') return 'completed';
   return status;
@@ -60,7 +53,9 @@ serve(async (req: Request) => {
   }
 
   // Validate the status - make sure it's one of the allowed values
-  if (!VALID_STATUSES.includes(status)) {
+  // Note: Handle legacy values by accepting them but mapping them internally
+  const validStatusValues = [...VALID_STATUSES, 'pending', 'done']; // Include legacy values for validation
+  if (!validStatusValues.includes(status)) {
     return new Response(
       JSON.stringify({ error: "Invalid status value", validOptions: VALID_STATUSES }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
@@ -182,11 +177,12 @@ serve(async (req: Request) => {
       }
     }
     
-    // Map status for response message
+    // Create more user-friendly status messages
     const statusDisplayMap: Record<string, string> = {
       'upcoming': 'marked as upcoming',
       'completed': 'marked as completed',
       'delayed': 'marked as delayed',
+      // Legacy values - map to their modern equivalents for backwards compatibility
       'pending': 'marked as upcoming',
       'done': 'marked as completed'
     };

@@ -15,30 +15,30 @@ interface StatusSelectProps {
 }
 
 export const getStatusColorClass = (status: string) => {
-  // Handle old status names first
-  const mappedStatus = 
+  // Map legacy status values if they somehow still exist
+  const normalizedStatus = 
     status === 'pending' ? 'upcoming' :
     status === 'done' ? 'completed' :
     status;
     
-  const found = STATUS_OPTIONS.find((opt) => opt.value === mappedStatus);
+  const found = STATUS_OPTIONS.find((opt) => opt.value === normalizedStatus);
   return found ? found.colorClass : '';
 };
 
 const StatusSelect = ({ value, onChange, disabled }: StatusSelectProps) => {
-  // Map old status names to new ones if needed
-  const mappedValue = 
+  // Map legacy status values to new ones if they somehow still exist
+  const normalizedValue = 
     value === 'pending' ? 'upcoming' : 
     value === 'done' ? 'completed' : 
     value;
   
   return (
     <Select
-      value={mappedValue}
+      value={normalizedValue}
       onValueChange={(value: EventStatus) => onChange(value)}
       disabled={disabled}
     >
-      <SelectTrigger className={`w-28 h-8 text-sm ${getStatusColorClass(mappedValue)}`}>
+      <SelectTrigger className={`w-28 h-8 text-sm ${getStatusColorClass(normalizedValue)}`}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
