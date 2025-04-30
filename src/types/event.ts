@@ -1,5 +1,5 @@
 
-export type EventStatus = 'upcoming' | 'completed' | 'delayed' | 'pending' | 'done';
+export type EventStatus = 'upcoming' | 'completed' | 'delayed';
 
 export interface Activity {
   id: string;
@@ -16,12 +16,12 @@ export interface Activity {
 export interface EventStatusRecord {
   id: string;
   activity_id: string;
-  status: EventStatus;
+  status: string;  // Use string type to handle both old and new status values
   status_updated_at: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
-  event_type: EventStatus; // Make sure event_type is also of type EventStatus
+  event_type: string;  // Use string type to handle both old and new event_type values
 }
 
 export interface ActivityWithStatus extends Activity {

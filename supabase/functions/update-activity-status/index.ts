@@ -81,9 +81,13 @@ serve(async (req: Request) => {
 
     // Get the internal database status value
     const internalStatus = mapStatusToInternal(status);
-    const eventType = mapStatusToEventType(internalStatus);
-
-    console.log("Mapped status:", status, "→", internalStatus, "EventType:", eventType);
+    
+    // Fix: Use the same mapped status value for both status and event_type
+    // This ensures both fields use the same compatible value
+    const mappedStatus = internalStatus;
+    const mappedEventType = mappedStatus;
+    
+    console.log("Mapped status:", status, "→", mappedStatus, "EventType:", mappedEventType);
 
     const { data: activity, error: activityError } = await supabase
       .from("activities")
@@ -111,9 +115,9 @@ serve(async (req: Request) => {
         .from("event_statuses")
         .insert({
           activity_id: activityId,
-          status: internalStatus,
+          status: mappedStatus,
           status_updated_at: new Date().toISOString(),
-          event_type: eventType,
+          event_type: mappedEventType,
         })
         .select();
 
@@ -145,9 +149,9 @@ serve(async (req: Request) => {
           .from("event_statuses")
           .insert({
             activity_id: activityId,
-            status: internalStatus,
+            status: mappedStatus,
             status_updated_at: new Date().toISOString(),
-            event_type: eventType,
+            event_type: mappedEventType,
           })
           .select();
           
@@ -162,8 +166,8 @@ serve(async (req: Request) => {
         const { data, error: updateError } = await supabase
           .from("event_statuses")
           .update({ 
-            status: internalStatus,
-            event_type: eventType,
+            status: mappedStatus,
+            event_type: mappedEventType,
             status_updated_at: new Date().toISOString()
           })
           .eq("id", statusId)
