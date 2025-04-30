@@ -56,7 +56,11 @@ const ActivitiesTable = ({
                     disabled={updatingStatus[activity.id]}
                   />
                 ) : (
-                  <span className="text-orange-500 italic">Upcoming</span>
+                  <StatusSelect
+                    value="upcoming"
+                    onChange={(value) => onStatusChange(activity.id, value)}
+                    disabled={updatingStatus[activity.id]}
+                  />
                 )}
               </td>
             </tr>

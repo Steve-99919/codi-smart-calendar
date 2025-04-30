@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { ActivityWithStatus } from '@/types/event';
+import { ActivityWithStatus, EventStatus } from '@/types/event';
 import { toast } from "sonner";
 
 export const useActivities = (userId: string | undefined) => {
@@ -116,7 +116,7 @@ export const useActivities = (userId: string | undefined) => {
     }
   };
 
-  const handleStatusChange = async (activityId: string, newStatus: string) => {
+  const handleStatusChange = async (activityId: string, newStatus: EventStatus) => {
     const statusRecord = eventStatuses[activityId];
     if (!statusRecord) {
       toast.error('Status record not found');

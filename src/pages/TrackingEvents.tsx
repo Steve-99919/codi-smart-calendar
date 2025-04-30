@@ -18,6 +18,7 @@ const TrackingEvents = () => {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [userId, setUserId] = useState<string>();
+  const [updatingStatus, setUpdatingStatus] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     const checkSession = async () => {
@@ -80,6 +81,15 @@ const TrackingEvents = () => {
     }
   };
 
+  const handleActivityStatusChange = async (activityId: string, newStatus: EventStatus) => {
+    setUpdatingStatus(prev => ({ ...prev, [activityId]: true }));
+    try {
+      await handleStatusChange(activityId, newStatus);
+    } finally {
+      setUpdatingStatus(prev => ({ ...prev, [activityId]: false }));
+    }
+  };
+
   if (loading || initializingStatuses) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -120,8 +130,8 @@ const TrackingEvents = () => {
           ) : (
             <ActivitiesTable 
               activities={activities}
-              onStatusChange={handleStatusChange}
-              updatingStatus={{}}
+              onStatusChange={handleActivityStatusChange}
+              updatingStatus={updatingStatus}
             />
           )}
         </div>
