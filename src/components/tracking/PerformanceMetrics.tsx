@@ -10,35 +10,36 @@ interface PerformanceMetricsProps {
 
 const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({ activities }) => {
   // Calculate metrics
-  const statusCounts: Record<EventStatus, number> = {
+  // Include both new and legacy status types in the record
+  const statusCounts: Record<string, number> = {
     upcoming: 0,
     completed: 0,
     delayed: 0,
-    pending: 0,
-    done: 0
+    pending: 0, // legacy status
+    done: 0     // legacy status
   };
 
   activities.forEach(activity => {
     if (activity.status) {
-      // Get the status value and ensure it's properly typed
-      const statusValue = activity.status.status as EventStatus;
+      // Get the status value as string to handle both old and new status values
+      const statusValue = activity.status.status as string;
       
       // Map old status names to new ones
-      let mappedStatus: EventStatus;
+      let mappedStatus: string;
       if (statusValue === 'pending') {
         mappedStatus = 'upcoming';
+        // Count both the legacy and mapped status
+        statusCounts['pending'] = (statusCounts['pending'] || 0) + 1;
+        statusCounts['upcoming'] = (statusCounts['upcoming'] || 0) + 1;
       } else if (statusValue === 'done') {
         mappedStatus = 'completed';
+        // Count both the legacy and mapped status
+        statusCounts['done'] = (statusCounts['done'] || 0) + 1;
+        statusCounts['completed'] = (statusCounts['completed'] || 0) + 1;
       } else {
         mappedStatus = statusValue;
-      }
-      
-      // Add to the appropriate counter
-      statusCounts[mappedStatus] = (statusCounts[mappedStatus] || 0) + 1;
-      
-      // Also increment the legacy status if it exists
-      if (statusValue === 'pending' || statusValue === 'done') {
-        statusCounts[statusValue] = (statusCounts[statusValue] || 0) + 1;
+        // Count the standard status
+        statusCounts[mappedStatus] = (statusCounts[mappedStatus] || 0) + 1;
       }
     } else {
       // Default to upcoming if no status
@@ -46,7 +47,7 @@ const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({ activities }) =
     }
   });
 
-  // Combine legacy status counts with new status names for display
+  // Display counts for the UI
   const displayCounts = {
     upcoming: statusCounts.upcoming + statusCounts.pending,
     completed: statusCounts.completed + statusCounts.done,
