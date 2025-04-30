@@ -24,7 +24,6 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
     selectedGoDate,
     activityIdPrefix,
     newActivity,
-    autoPrepDate,
     handlePrefixChange,
     handlePrepDateSelect,
     handleGoDateSelect,
@@ -62,7 +61,7 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
         handleGoDateSelect={handleGoDateSelect}
         handleInputChange={handleInputChange}
         handleSubmit={handleSubmit}
-        autoPrepDate={autoPrepDate}
+        autoPrepDate={true}
       />
     </>
   );
