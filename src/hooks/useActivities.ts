@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ActivityWithStatus, EventStatus } from '@/types/event';
@@ -187,7 +186,11 @@ export const useActivities = (userId: string | undefined) => {
           .select('*')
           .single();
           
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error('Error inserting status:', insertError);
+          toast.error('Failed to update status');
+          throw insertError;
+        }
         
         if (newRecord) {
           // Ensure the status is properly typed
@@ -217,16 +220,21 @@ export const useActivities = (userId: string | undefined) => {
       }
       
       // If the status record exists, update it
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('event_statuses')
         .update({ 
           status: dbStatus,
           event_type: dbStatus, // Update the event_type to match the status
           status_updated_at: new Date().toISOString() 
         })
-        .eq('id', existingStatus.id);
+        .eq('id', existingStatus.id)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating status:', error);
+        toast.error('Failed to update status');
+        throw error;
+      }
 
       const updatedStatusRecord = { 
         ...existingStatus, 
