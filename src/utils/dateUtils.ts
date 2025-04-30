@@ -1,4 +1,7 @@
+
 // Function to check if a date is a weekend
+import { format } from "date-fns";
+
 export const isWeekend = (dateStr: string): boolean => {
   // Parse the date in dd/mm/yyyy format
   const [day, month, year] = dateStr.split('/').map(Number);
