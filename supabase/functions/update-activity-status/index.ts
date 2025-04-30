@@ -93,7 +93,7 @@ serve(async (req: Request) => {
           activity_id: activityId,
           status: status,
           status_updated_at: new Date().toISOString(),
-          event_type: status, // Use the status as the event type
+          event_type: status, // Use the same value for event_type as status
         })
         .select();
 
@@ -127,7 +127,7 @@ serve(async (req: Request) => {
             activity_id: activityId,
             status: status,
             status_updated_at: new Date().toISOString(),
-            event_type: status, // Use the status as the event type
+            event_type: status, // Use the same value for event_type as status
           })
           .select();
           
@@ -143,7 +143,7 @@ serve(async (req: Request) => {
           .from("event_statuses")
           .update({ 
             status: status,
-            event_type: status, // Update the event_type to match the status
+            event_type: status, // Use the same value for event_type as status
             status_updated_at: new Date().toISOString()
           })
           .eq("id", statusId)

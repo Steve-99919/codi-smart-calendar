@@ -90,7 +90,7 @@ export const useActivities = (userId: string | undefined) => {
           .insert({
             activity_id: activity.id,
             status: defaultStatus,
-            event_type: defaultStatus, // Use only valid event_type values
+            event_type: defaultStatus, // Use the same value for both fields
             status_updated_at: new Date().toISOString(),
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -122,7 +122,7 @@ export const useActivities = (userId: string | undefined) => {
               act.id === activity.id 
                 ? { ...act, status: typedStatus } 
                 : act
-            ) as ActivityWithStatus[]
+            )
           );
         }
       }
@@ -151,7 +151,7 @@ export const useActivities = (userId: string | undefined) => {
           .insert({ 
             activity_id: activityId,
             status: newStatus,
-            event_type: newStatus, // Use the status as the event_type
+            event_type: newStatus, // Use the same value for both fields
             status_updated_at: new Date().toISOString() 
           })
           .select('*')
@@ -177,7 +177,7 @@ export const useActivities = (userId: string | undefined) => {
               activity.id === activityId 
                 ? { ...activity, status: typedNewRecord } 
                 : activity
-            ) as ActivityWithStatus[]
+            )
           );
           
           toast.success(`Status updated successfully`);
@@ -214,7 +214,7 @@ export const useActivities = (userId: string | undefined) => {
           activity.id === activityId 
             ? { ...activity, status: updatedStatusRecord } 
             : activity
-        ) as ActivityWithStatus[]
+        )
       );
 
       toast.success(`Status updated successfully`);

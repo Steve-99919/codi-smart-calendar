@@ -20,8 +20,8 @@ const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({ activities }) =
 
   activities.forEach(activity => {
     if (activity.status) {
-      // Get the status value
-      const statusValue = activity.status.status;
+      // Get the status value and ensure it's properly typed
+      const statusValue = activity.status.status as EventStatus;
       
       // Map old status names to new ones
       let mappedStatus: EventStatus;
