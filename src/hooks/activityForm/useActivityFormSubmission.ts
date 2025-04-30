@@ -40,7 +40,14 @@ export const useActivityFormSubmission = ({
     updateActivityId(finalPrefix);
   };
 
-  // Removed the duplicate handleOpenAddActivity function
+  const handleOpenAddActivity = () => {
+    const nextId = `${activityIdPrefix}${getNextNumber(data, activityIdPrefix)}`;
+    setNewActivity(prev => ({
+      ...prev,
+      activityId: nextId
+    }));
+    return nextId;
+  };
 
   const submitActivity = (onAddActivity: (newActivity: CSVRow) => void) => {
     if (isProcessingActivity) return;
@@ -83,6 +90,7 @@ export const useActivityFormSubmission = ({
   return {
     isProcessingActivity,
     handlePrefixChange,
+    handleOpenAddActivity,
     handleSubmit
   };
 };
