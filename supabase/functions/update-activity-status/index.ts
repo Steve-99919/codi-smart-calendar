@@ -29,10 +29,10 @@ function urlSafeBase64Decode(str: string): string {
   }
 }
 
-// Map external status names to internal database status names if needed
+// Map external status names to internal database status names
 function mapStatusToInternal(status: string): string {
-  // For now, use the same values in the database
-  // This function exists in case we need to map values in the future
+  if (status === 'pending') return 'upcoming';
+  if (status === 'done') return 'completed';
   return status;
 }
 
@@ -81,12 +81,12 @@ serve(async (req: Request) => {
 
     // Get the internal database status value
     const internalStatus = mapStatusToInternal(status);
+    console.log("Original status:", status, "Mapped to internal status:", internalStatus);
     
-    // Use the same value for both status and event_type
-    const mappedStatus = internalStatus;
-    const mappedEventType = mappedStatus;
+    // Use the same value for both status and event_type fields
+    const mappedEventType = internalStatus;
     
-    console.log("Mapped status:", status, "→", mappedStatus, "EventType:", mappedEventType);
+    console.log("Mapped status:", status, "→", internalStatus, "EventType:", mappedEventType);
 
     const { data: activity, error: activityError } = await supabase
       .from("activities")
@@ -114,7 +114,7 @@ serve(async (req: Request) => {
         .from("event_statuses")
         .insert({
           activity_id: activityId,
-          status: mappedStatus,
+          status: internalStatus,
           status_updated_at: new Date().toISOString(),
           event_type: mappedEventType,
         })
@@ -148,7 +148,7 @@ serve(async (req: Request) => {
           .from("event_statuses")
           .insert({
             activity_id: activityId,
-            status: mappedStatus,
+            status: internalStatus,
             status_updated_at: new Date().toISOString(),
             event_type: mappedEventType,
           })
@@ -165,7 +165,7 @@ serve(async (req: Request) => {
         const { data, error: updateError } = await supabase
           .from("event_statuses")
           .update({ 
-            status: mappedStatus,
+            status: internalStatus,
             event_type: mappedEventType,
             status_updated_at: new Date().toISOString()
           })
