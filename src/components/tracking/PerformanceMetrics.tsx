@@ -18,17 +18,22 @@ const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({ activities }) =
 
   activities.forEach(activity => {
     if (activity.status) {
-      // Get the status value and map old status names to new ones if needed
-      let statusValue = activity.status.status;
+      // Get the status value and map old status names to new ones
+      const statusValue = activity.status.status;
       
-      // Map old status names to new ones
-      let status: EventStatus = 
-        statusValue === 'pending' ? 'upcoming' : 
-        statusValue === 'done' ? 'completed' : 
-        statusValue as EventStatus;
+      // Map old status names to new ones using type assertion
+      let status: EventStatus;
+      if (statusValue === 'pending') {
+        status = 'upcoming' as EventStatus;
+      } else if (statusValue === 'done') {
+        status = 'completed' as EventStatus;
+      } else {
+        status = statusValue as EventStatus;
+      }
       
       statusCounts[status] = (statusCounts[status] || 0) + 1;
     } else {
+      // Default to upcoming if no status
       statusCounts.upcoming += 1;
     }
   });

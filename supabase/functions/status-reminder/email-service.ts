@@ -11,6 +11,9 @@ const APP_URL = "https://mightytouchstrategies.org";
 // Initialize Resend client
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
+// Valid status values - must match EventStatus type in frontend
+const VALID_STATUSES = ['upcoming', 'completed', 'delayed'];
+
 // Function to send reminder emails
 export async function sendReminderEmails(
   pendingActivities: Activity[], 

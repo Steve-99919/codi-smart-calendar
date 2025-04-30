@@ -33,6 +33,7 @@ export const useActivities = (userId: string | undefined) => {
         statusesData = eventStatusesData || [];
       }
 
+      // Create a map of activity ID to status record
       const statusMap: Record<string, any> = {};
       statusesData.forEach((st) => {
         // Map old status names to new ones
@@ -42,6 +43,7 @@ export const useActivities = (userId: string | undefined) => {
         statusMap[st.activity_id] = st;
       });
 
+      // Add status to each activity
       const activitiesWithStatus = (activitiesData || []).map(activity => ({
         ...activity,
         status: statusMap[activity.id] || null
@@ -66,48 +68,57 @@ export const useActivities = (userId: string | undefined) => {
   ) => {
     if (!activitiesData.length) return;
 
+    // Find activities without status records
+    const missingStatusActivities = activitiesData.filter(activity => !statusMap[activity.id]);
+    
+    if (missingStatusActivities.length === 0) {
+      return;
+    }
+    
     setInitializingStatuses(true);
+    
+    // Process each activity individually to avoid bulk insert issues
     try {
-      const missingStatusRecords = activitiesData
-        .filter(activity => !statusMap[activity.id])
-        .map(activity => ({
-          activity_id: activity.id,
-          status: 'upcoming', // Changed from 'pending' to 'upcoming'
-          status_updated_at: null,
-          event_type: 'upcoming', // Changed from 'pending' to 'upcoming'
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }));
+      for (const activity of missingStatusActivities) {
+        const { data, error } = await supabase
+          .from('event_statuses')
+          .insert({
+            activity_id: activity.id,
+            status: 'upcoming',
+            event_type: 'upcoming', // Use only valid event_type values
+            status_updated_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .select('*')
+          .single();
 
-      if (missingStatusRecords.length === 0) {
-        return;
+        if (error) {
+          console.error(`Error initializing status for activity ${activity.id}:`, error);
+          continue;
+        }
+
+        // Update local state with the new status
+        if (data) {
+          setEventStatuses(prev => ({
+            ...prev,
+            [activity.id]: data
+          }));
+          
+          setActivities(prev => 
+            prev.map(act => 
+              act.id === activity.id 
+                ? { ...act, status: data } 
+                : act
+            )
+          );
+        }
       }
-
-      const { data: insertedData, error: insertError } = await supabase
-        .from('event_statuses')
-        .insert(missingStatusRecords)
-        .select();
-
-      if (insertError) {
-        console.error('Error inserting missing statuses:', insertError);
-        toast.error('Failed to initialize some statuses');
-        return;
-      }
-
-      const newStatusMap = { ...statusMap };
-      insertedData?.forEach((st: any) => {
-        newStatusMap[st.activity_id] = st;
-      });
-
-      setEventStatuses(newStatusMap);
-      setActivities(prev => 
-        prev.map(activity => ({
-          ...activity,
-          status: newStatusMap[activity.id] || null
-        }))
-      );
       
-      toast.success(`Initialized ${insertedData.length} missing statuses as Upcoming`);
+      const successCount = missingStatusActivities.length;
+      if (successCount > 0) {
+        toast.success(`Initialized ${successCount} missing statuses as Upcoming`);
+      }
     } catch (error) {
       console.error('Unexpected error initializing missing statuses:', error);
       toast.error('Failed to initialize some statuses');
@@ -117,30 +128,57 @@ export const useActivities = (userId: string | undefined) => {
   };
 
   const handleStatusChange = async (activityId: string, newStatus: EventStatus) => {
-    const statusRecord = eventStatuses[activityId];
-    if (!statusRecord) {
-      toast.error('Status record not found');
-      return;
-    }
-
-    if (statusRecord.status === newStatus) {
-      return;
-    }
-
     try {
+      // First check if the status record exists
+      const existingStatus = eventStatuses[activityId];
+      
+      if (!existingStatus) {
+        // If status doesn't exist, create a new one
+        const { data: newRecord, error: insertError } = await supabase
+          .from('event_statuses')
+          .insert({ 
+            activity_id: activityId,
+            status: newStatus,
+            event_type: newStatus, // Use the status as the event_type
+            status_updated_at: new Date().toISOString() 
+          })
+          .select('*')
+          .single();
+          
+        if (insertError) throw insertError;
+        
+        // Update local state
+        setEventStatuses((prev) => ({
+          ...prev,
+          [activityId]: newRecord,
+        }));
+        
+        setActivities(prev => 
+          prev.map(activity => 
+            activity.id === activityId 
+              ? { ...activity, status: newRecord } 
+              : activity
+          )
+        );
+        
+        toast.success(`Status updated successfully`);
+        return;
+      }
+      
+      // If the status record exists, update it
       const { error } = await supabase
         .from('event_statuses')
         .update({ 
           status: newStatus,
-          event_type: newStatus,
+          event_type: newStatus, // Update the event_type to match the status
           status_updated_at: new Date().toISOString() 
         })
-        .eq('id', statusRecord.id);
+        .eq('id', existingStatus.id);
 
       if (error) throw error;
 
       const updatedStatusRecord = { 
-        ...statusRecord, 
+        ...existingStatus, 
         status: newStatus,
         event_type: newStatus,
         status_updated_at: new Date().toISOString() 

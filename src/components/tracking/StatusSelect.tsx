@@ -15,13 +15,22 @@ interface StatusSelectProps {
 }
 
 export const getStatusColorClass = (status: string) => {
-  const found = STATUS_OPTIONS.find((opt) => opt.value === status);
+  // Handle old status names first
+  const mappedStatus = 
+    status === 'pending' ? 'upcoming' :
+    status === 'done' ? 'completed' :
+    status;
+    
+  const found = STATUS_OPTIONS.find((opt) => opt.value === mappedStatus);
   return found ? found.colorClass : '';
 };
 
 const StatusSelect = ({ value, onChange, disabled }: StatusSelectProps) => {
   // Map old status names to new ones if needed
-  const mappedValue = value === 'pending' ? 'upcoming' : (value === 'done' ? 'completed' : value);
+  const mappedValue = 
+    value === 'pending' ? 'upcoming' : 
+    value === 'done' ? 'completed' : 
+    value;
   
   return (
     <Select

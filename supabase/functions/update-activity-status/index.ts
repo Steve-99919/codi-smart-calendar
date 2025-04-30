@@ -13,6 +13,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Valid status values - must match EventStatus type in frontend
+const VALID_STATUSES = ['upcoming', 'completed', 'delayed'];
+
 function urlSafeBase64Decode(str: string): string {
   let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
   while (base64.length % 4) {
@@ -42,10 +45,10 @@ serve(async (req: Request) => {
     );
   }
 
-  // Validate the status - now using the new status names
-  if (status !== "completed" && status !== "delayed") {
+  // Validate the status - make sure it's one of the allowed values
+  if (!VALID_STATUSES.includes(status)) {
     return new Response(
-      JSON.stringify({ error: "Invalid status value" }),
+      JSON.stringify({ error: "Invalid status value", validOptions: VALID_STATUSES }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
     );
   }
