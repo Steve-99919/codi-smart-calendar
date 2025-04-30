@@ -62,40 +62,25 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     }));
   };
 
+  // Calculate prep date - always 3 days before go date regardless of weekend/holiday
   const calculatePrepDate = (goDate: Date): Date => {
-    let prepDate = subDays(goDate, 3);
-    if (!allowWeekends && isWeekend(format(prepDate, 'dd/MM/yyyy'))) {
-      // If weekend not allowed and it falls on weekend, move to Friday
-      prepDate = getValidPrepDate(prepDate, allowWeekends, allowHolidays);
-    }
+    return subDays(goDate, 3);
+  };
+
+  // Check if the calculated prep date would fall on a weekend or holiday
+  const isPrepDateRestricted = (prepDate: Date): boolean => {
+    const formattedDate = format(prepDate, 'dd/MM/yyyy');
+    const isDateOnWeekend = isWeekend(formattedDate);
+    const isDateOnHoliday = isPublicHoliday(formattedDate);
     
-    if (!allowHolidays && isPublicHoliday(format(prepDate, 'dd/MM/yyyy'))) {
-      // If holiday not allowed and it falls on holiday, move to previous business day
-      prepDate = getValidPrepDate(prepDate, allowWeekends, allowHolidays);
-    }
-    
-    return prepDate;
+    return (isDateOnWeekend && !allowWeekends) || (isDateOnHoliday && !allowHolidays);
   };
 
   const handlePrepDateSelect = (date: Date | undefined) => {
+    // Only used if autoPrepDate is false - which should never happen now
     setSelectedPrepDate(date);
     if (date) {
       const formattedDate = format(date, 'dd/MM/yyyy');
-      const isDateOnWeekend = isWeekend(formattedDate);
-      const isDateOnHoliday = isPublicHoliday(formattedDate);
-      
-      if (isDateOnWeekend && !allowWeekends) {
-        toast.error("You have selected a weekend date. Please enable weekend dates in preferences or select another date.");
-        setSelectedPrepDate(undefined);
-        return;
-      }
-      
-      if (isDateOnHoliday && !allowHolidays) {
-        toast.error("You have selected a public holiday. Please enable holiday dates in preferences or select another date.");
-        setSelectedPrepDate(undefined);
-        return;
-      }
-      
       setNewActivity(prev => ({
         ...prev,
         prepDate: formattedDate
@@ -104,39 +89,46 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
   };
 
   const handleGoDateSelect = (date: Date | undefined) => {
-    setSelectedGoDate(date);
-    if (date) {
-      const formattedDate = format(date, 'dd/MM/yyyy');
-      const isDateOnWeekend = isWeekend(formattedDate);
-      const isDateOnHoliday = isPublicHoliday(formattedDate);
-      
-      if (isDateOnWeekend && !allowWeekends) {
-        toast.error("You have selected a weekend date. Please enable weekend dates in preferences or select another date.");
-        setSelectedGoDate(undefined);
-        return;
-      }
-      
-      if (isDateOnHoliday && !allowHolidays) {
-        toast.error("You have selected a public holiday. Please enable holiday dates in preferences or select another date.");
-        setSelectedGoDate(undefined);
-        return;
-      }
-      
+    if (!date) {
+      setSelectedGoDate(undefined);
+      setSelectedPrepDate(undefined);
       setNewActivity(prev => ({
         ...prev,
-        goDate: formattedDate
+        goDate: "",
+        prepDate: ""
       }));
-
-      // Auto calculate prep date if enabled
-      if (autoPrepDate) {
-        const prepDate = calculatePrepDate(date);
-        setSelectedPrepDate(prepDate);
-        setNewActivity(prev => ({
-          ...prev,
-          prepDate: format(prepDate, 'dd/MM/yyyy')
-        }));
-      }
+      return;
     }
+
+    // First, set the go date
+    const formattedGoDate = format(date, 'dd/MM/yyyy');
+    const isGoDateOnWeekend = isWeekend(formattedGoDate);
+    const isGoDateOnHoliday = isPublicHoliday(formattedGoDate);
+    
+    // Check if the go date itself falls on weekend/holiday
+    if ((isGoDateOnWeekend && !allowWeekends) || (isGoDateOnHoliday && !allowHolidays)) {
+      toast.error("You have selected a weekend or holiday for the go date. Please select another date.");
+      return;
+    }
+    
+    // Calculate prep date (always 3 days before)
+    const prepDate = calculatePrepDate(date);
+    const formattedPrepDate = format(prepDate, 'dd/MM/yyyy');
+    
+    // If restrictions apply and the prep date falls on a weekend/holiday
+    if (isPrepDateRestricted(prepDate)) {
+      toast.error("The prep date (3 days before) would fall on a weekend or holiday. Please select another go date.");
+      return;
+    }
+    
+    // All checks passed, update the form
+    setSelectedGoDate(date);
+    setSelectedPrepDate(prepDate);
+    setNewActivity(prev => ({
+      ...prev,
+      goDate: formattedGoDate,
+      prepDate: formattedPrepDate
+    }));
   };
 
   const handleOpenAddActivity = () => {
@@ -269,7 +261,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     selectedGoDate,
     activityIdPrefix,
     newActivity,
-    autoPrepDate,
+    autoPrepDate: true, // Always set to true - we're enforcing this behavior
     handlePrefixChange,
     handlePrepDateSelect,
     handleGoDateSelect,

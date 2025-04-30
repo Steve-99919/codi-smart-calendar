@@ -1,4 +1,3 @@
-
 // Function to check if a date is a weekend
 import { format } from "date-fns";
 

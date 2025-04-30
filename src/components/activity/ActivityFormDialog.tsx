@@ -135,35 +135,22 @@ export const ActivityFormDialog = ({
             </div>
             
             <div className="space-y-2">
-              <Label>Prep Date* {autoPrepDate && <span className="text-xs text-muted-foreground">(Auto-calculated)</span>}</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !selectedPrepDate && "text-muted-foreground"
-                    )}
-                    disabled={autoPrepDate}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedPrepDate ? format(selectedPrepDate, "dd/MM/yyyy") : <span>Pick a prep date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={selectedPrepDate}
-                    onSelect={handlePrepDateSelect}
-                    initialFocus
-                    disabled={autoPrepDate}
-                    className={cn("p-3 pointer-events-auto", autoPrepDate && "opacity-50 cursor-not-allowed")}
-                  />
-                </PopoverContent>
-              </Popover>
-              {autoPrepDate && (
-                <p className="text-xs text-muted-foreground">Prep date is automatically set 3 days before the Go date.</p>
-              )}
+              <Label>Prep Date* <span className="text-xs text-muted-foreground">(Auto-calculated)</span></Label>
+              <div className="flex items-center gap-2">
+                <Input 
+                  value={selectedPrepDate ? format(selectedPrepDate, "dd/MM/yyyy") : ""}
+                  disabled
+                  className="bg-gray-100"
+                  placeholder="Automatically set 3 days before Go Date"
+                />
+                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Prep date is automatically set 3 days before the Go date.
+                {!newActivity.prepDate && selectedGoDate ? (
+                  <span className="text-orange-500"> Warning: Selected Go date would result in a weekend or holiday prep date.</span>
+                ) : ""}
+              </p>
             </div>
           </div>
           
