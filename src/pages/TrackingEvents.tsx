@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
@@ -11,6 +10,7 @@ import ActivitiesTable from '@/components/tracking/ActivitiesTable';
 import EmptyActivities from '@/components/tracking/EmptyActivities';
 import PerformanceMetrics from '@/components/tracking/PerformanceMetrics';
 import { useActivities } from '@/hooks/useActivities';
+import { EventStatus } from '@/types/event';
 
 const TrackingEvents = () => {
   const navigate = useNavigate();

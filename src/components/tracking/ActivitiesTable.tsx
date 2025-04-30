@@ -1,8 +1,6 @@
 
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ActivityWithStatus } from "@/types/event";
+import { ActivityWithStatus, EventStatus } from "@/types/event";
 import StatusSelect from "./StatusSelect";
-import { EventStatus } from "@/types/event";
 
 interface ActivitiesTableProps {
   activities: ActivityWithStatus[];
