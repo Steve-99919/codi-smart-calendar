@@ -12,7 +12,7 @@ const APP_URL = "https://mightytouchstrategies.org";
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 // Valid status values - must match EventStatus type in frontend
-const VALID_STATUSES = ['upcoming', 'completed', 'delayed'];
+const VALID_STATUSES = ['upcoming', 'completed', 'delayed', 'pending', 'done'];
 
 // Function to send reminder emails
 export async function sendReminderEmails(
@@ -39,12 +39,14 @@ export async function sendReminderEmails(
       const tokenPayload = `${activity.id}:${statusId || 'new'}`;
       const verificationToken = urlSafeBase64Encode(tokenPayload);
       
-      // Only need delayed option for prep date email, completed/delayed for go date
+      // Use proper status values for the URLs - these must match the valid statuses in the update function
       const delayUrl = `${APP_URL}/status-confirm?token=${verificationToken}&status=delayed`;
       const completeUrl = `${APP_URL}/status-confirm?token=${verificationToken}&status=completed`;
 
       console.log("Token payload:", tokenPayload);
       console.log("URL-safe encoded token:", verificationToken);
+      console.log("Completion URL:", completeUrl);
+      console.log("Delay URL:", delayUrl);
       
       try {
         let htmlContent = '';
@@ -70,9 +72,6 @@ export async function sendReminderEmails(
           `;
         } else { // go date email
           subject = `Status Update Needed: Activity ${activity.activity_name}`;
-          
-          console.log("Completion URL:", completeUrl);
-          console.log("Delay URL:", delayUrl);
           
           // For go date emails, show both completed and delayed options
           htmlContent = `

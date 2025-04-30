@@ -10,6 +10,22 @@ export const useActivities = (userId: string | undefined) => {
   const [eventStatuses, setEventStatuses] = useState<Record<string, any>>({});
   const [initializingStatuses, setInitializingStatuses] = useState(false);
 
+  // Helper function to ensure status is of type EventStatus
+  const ensureEventStatus = (status: string): EventStatus => {
+    // Map legacy status names to new ones if needed
+    if (status === 'pending') return 'upcoming';
+    if (status === 'done') return 'completed';
+    
+    // Check if the status is already a valid EventStatus
+    if (['upcoming', 'completed', 'delayed'].includes(status)) {
+      return status as EventStatus;
+    }
+    
+    // Default to 'upcoming' if not valid
+    console.warn(`Unknown status value: ${status}, defaulting to 'upcoming'`);
+    return 'upcoming';
+  };
+
   const fetchActivities = async () => {
     if (!userId) return;
     
@@ -37,12 +53,14 @@ export const useActivities = (userId: string | undefined) => {
       const statusMap: Record<string, any> = {};
       statusesData.forEach((st) => {
         // Ensure the status is of type EventStatus
-        const status = st.status as EventStatus; 
+        const status = ensureEventStatus(st.status);
+        const eventType = ensureEventStatus(st.event_type);
         
         // Store the status record with properly typed status field
         statusMap[st.activity_id] = {
           ...st,
-          status
+          status,
+          event_type: eventType
         };
       });
 
@@ -108,7 +126,8 @@ export const useActivities = (userId: string | undefined) => {
           // Ensure the status is properly typed
           const typedStatus = {
             ...data,
-            status: data.status as EventStatus
+            status: ensureEventStatus(data.status),
+            event_type: ensureEventStatus(data.event_type)
           };
           
           setEventStatuses(prev => ({
@@ -117,13 +136,13 @@ export const useActivities = (userId: string | undefined) => {
           }));
           
           // Update the activity with the new status
-          setActivities(prev => 
-            prev.map(act => 
+          setActivities(prev => {
+            return prev.map(act => 
               act.id === activity.id 
                 ? { ...act, status: typedStatus } 
                 : act
-            )
-          );
+            );
+          });
         }
       }
       
@@ -163,7 +182,8 @@ export const useActivities = (userId: string | undefined) => {
           // Ensure the status is properly typed
           const typedNewRecord = {
             ...newRecord,
-            status: newRecord.status as EventStatus
+            status: ensureEventStatus(newRecord.status),
+            event_type: ensureEventStatus(newRecord.event_type)
           };
         
           // Update local state
@@ -172,13 +192,13 @@ export const useActivities = (userId: string | undefined) => {
             [activityId]: typedNewRecord,
           }));
           
-          setActivities(prev => 
-            prev.map(activity => 
+          setActivities(prev => {
+            return prev.map(activity => 
               activity.id === activityId 
                 ? { ...activity, status: typedNewRecord } 
                 : activity
-            )
-          );
+            );
+          });
           
           toast.success(`Status updated successfully`);
         }
@@ -209,13 +229,13 @@ export const useActivities = (userId: string | undefined) => {
         [activityId]: updatedStatusRecord,
       }));
       
-      setActivities(prev => 
-        prev.map(activity => 
+      setActivities(prev => {
+        return prev.map(activity => 
           activity.id === activityId 
             ? { ...activity, status: updatedStatusRecord } 
             : activity
-        )
-      );
+        );
+      });
 
       toast.success(`Status updated successfully`);
     } catch (error) {

@@ -29,6 +29,20 @@ function urlSafeBase64Decode(str: string): string {
   }
 }
 
+// Map external status names to internal database status names if needed
+function mapStatusToInternal(status: string): string {
+  if (status === 'completed') return 'done';
+  if (status === 'upcoming') return 'pending';
+  return status;
+}
+
+// Map internal database status names to EventStatus type values
+function mapStatusToEventType(status: string): string {
+  if (status === 'pending') return 'upcoming';
+  if (status === 'done') return 'completed';
+  return status;
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -65,6 +79,12 @@ serve(async (req: Request) => {
       throw new Error("Missing activity ID in token");
     }
 
+    // Get the internal database status value
+    const internalStatus = mapStatusToInternal(status);
+    const eventType = mapStatusToEventType(internalStatus);
+
+    console.log("Mapped status:", status, "→", internalStatus, "EventType:", eventType);
+
     const { data: activity, error: activityError } = await supabase
       .from("activities")
       .select("*")
@@ -91,9 +111,9 @@ serve(async (req: Request) => {
         .from("event_statuses")
         .insert({
           activity_id: activityId,
-          status: status,
+          status: internalStatus,
           status_updated_at: new Date().toISOString(),
-          event_type: status, // Use the same value for event_type as status
+          event_type: eventType,
         })
         .select();
 
@@ -125,9 +145,9 @@ serve(async (req: Request) => {
           .from("event_statuses")
           .insert({
             activity_id: activityId,
-            status: status,
+            status: internalStatus,
             status_updated_at: new Date().toISOString(),
-            event_type: status, // Use the same value for event_type as status
+            event_type: eventType,
           })
           .select();
           
@@ -142,8 +162,8 @@ serve(async (req: Request) => {
         const { data, error: updateError } = await supabase
           .from("event_statuses")
           .update({ 
-            status: status,
-            event_type: status, // Use the same value for event_type as status
+            status: internalStatus,
+            event_type: eventType,
             status_updated_at: new Date().toISOString()
           })
           .eq("id", statusId)

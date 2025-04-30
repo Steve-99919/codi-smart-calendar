@@ -17,6 +17,16 @@ const StatusConfirm = () => {
   const [success, setSuccess] = useState(false);
   const [activityName, setActivityName] = useState<string | null>(null);
 
+  // Helper function to map statuses for display
+  const getDisplayStatus = (status: string): string => {
+    if (status === 'completed') return 'Completed';
+    if (status === 'done') return 'Completed';
+    if (status === 'delayed') return 'Delayed';
+    if (status === 'upcoming') return 'Upcoming';
+    if (status === 'pending') return 'Upcoming';
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  };
+
   useEffect(() => {
     const processStatus = async () => {
       if (!token || !status) {
@@ -25,7 +35,10 @@ const StatusConfirm = () => {
         return;
       }
 
-      if (status !== 'done' && status !== 'delayed') {
+      // Accept both 'completed' and 'done' for completion status
+      // Accept both 'upcoming' and 'pending' for upcoming status 
+      const validStatuses = ['upcoming', 'completed', 'delayed', 'pending', 'done'];
+      if (!validStatuses.includes(status)) {
         setError('Invalid status value');
         setLoading(false);
         return;
@@ -106,12 +119,12 @@ const StatusConfirm = () => {
                 {activityName ? (
                   <>
                     The status for activity "{activityName}" has been updated to{" "}
-                    <strong>{status === 'done' ? 'Done' : 'Delayed'}</strong>.
+                    <strong>{getDisplayStatus(status || '')}</strong>.
                   </>
                 ) : (
                   <>
                     The activity status has been updated to{" "}
-                    <strong>{status === 'done' ? 'Done' : 'Delayed'}</strong>.
+                    <strong>{getDisplayStatus(status || '')}</strong>.
                   </>
                 )}
               </p>
