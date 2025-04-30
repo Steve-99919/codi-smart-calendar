@@ -36,11 +36,14 @@ export const useActivities = (userId: string | undefined) => {
       // Create a map of activity ID to status record
       const statusMap: Record<string, any> = {};
       statusesData.forEach((st) => {
-        // Map old status names to new ones
-        if (st.status === 'pending') st.status = 'upcoming';
-        if (st.status === 'done') st.status = 'completed';
+        // Ensure the status is of type EventStatus
+        const status = st.status as EventStatus; 
         
-        statusMap[st.activity_id] = st;
+        // Store the status record with properly typed status field
+        statusMap[st.activity_id] = {
+          ...st,
+          status
+        };
       });
 
       // Add status to each activity
@@ -80,12 +83,14 @@ export const useActivities = (userId: string | undefined) => {
     // Process each activity individually to avoid bulk insert issues
     try {
       for (const activity of missingStatusActivities) {
+        const defaultStatus: EventStatus = 'upcoming';
+        
         const { data, error } = await supabase
           .from('event_statuses')
           .insert({
             activity_id: activity.id,
-            status: 'upcoming',
-            event_type: 'upcoming', // Use only valid event_type values
+            status: defaultStatus,
+            event_type: defaultStatus, // Use only valid event_type values
             status_updated_at: new Date().toISOString(),
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -100,17 +105,24 @@ export const useActivities = (userId: string | undefined) => {
 
         // Update local state with the new status
         if (data) {
+          // Ensure the status is properly typed
+          const typedStatus = {
+            ...data,
+            status: data.status as EventStatus
+          };
+          
           setEventStatuses(prev => ({
             ...prev,
-            [activity.id]: data
+            [activity.id]: typedStatus
           }));
           
+          // Update the activity with the new status
           setActivities(prev => 
             prev.map(act => 
               act.id === activity.id 
-                ? { ...act, status: data } 
+                ? { ...act, status: typedStatus } 
                 : act
-            )
+            ) as ActivityWithStatus[]
           );
         }
       }
@@ -147,21 +159,29 @@ export const useActivities = (userId: string | undefined) => {
           
         if (insertError) throw insertError;
         
-        // Update local state
-        setEventStatuses((prev) => ({
-          ...prev,
-          [activityId]: newRecord,
-        }));
+        if (newRecord) {
+          // Ensure the status is properly typed
+          const typedNewRecord = {
+            ...newRecord,
+            status: newRecord.status as EventStatus
+          };
         
-        setActivities(prev => 
-          prev.map(activity => 
-            activity.id === activityId 
-              ? { ...activity, status: newRecord } 
-              : activity
-          )
-        );
-        
-        toast.success(`Status updated successfully`);
+          // Update local state
+          setEventStatuses((prev) => ({
+            ...prev,
+            [activityId]: typedNewRecord,
+          }));
+          
+          setActivities(prev => 
+            prev.map(activity => 
+              activity.id === activityId 
+                ? { ...activity, status: typedNewRecord } 
+                : activity
+            ) as ActivityWithStatus[]
+          );
+          
+          toast.success(`Status updated successfully`);
+        }
         return;
       }
       
@@ -194,7 +214,7 @@ export const useActivities = (userId: string | undefined) => {
           activity.id === activityId 
             ? { ...activity, status: updatedStatusRecord } 
             : activity
-        )
+        ) as ActivityWithStatus[]
       );
 
       toast.success(`Status updated successfully`);

@@ -14,7 +14,7 @@ const corsHeaders = {
 };
 
 // Valid status values - must match EventStatus type in frontend
-const VALID_STATUSES = ['upcoming', 'completed', 'delayed'];
+const VALID_STATUSES = ['upcoming', 'completed', 'delayed', 'pending', 'done'];
 
 function urlSafeBase64Decode(str: string): string {
   let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
@@ -159,7 +159,16 @@ serve(async (req: Request) => {
       }
     }
     
-    const statusMessage = status === "completed" ? "marked as completed" : "marked as delayed";
+    // Map status for response message
+    const statusDisplayMap: Record<string, string> = {
+      'upcoming': 'marked as upcoming',
+      'completed': 'marked as completed',
+      'delayed': 'marked as delayed',
+      'pending': 'marked as upcoming',
+      'done': 'marked as completed'
+    };
+    
+    const statusMessage = statusDisplayMap[status] || `updated to ${status}`;
     
     return new Response(
       JSON.stringify({ 

@@ -13,30 +13,45 @@ const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({ activities }) =
   const statusCounts: Record<EventStatus, number> = {
     upcoming: 0,
     completed: 0,
-    delayed: 0
+    delayed: 0,
+    pending: 0,
+    done: 0
   };
 
   activities.forEach(activity => {
     if (activity.status) {
-      // Get the status value and map old status names to new ones
+      // Get the status value
       const statusValue = activity.status.status;
       
-      // Map old status names to new ones using type assertion
-      let status: EventStatus;
+      // Map old status names to new ones
+      let mappedStatus: EventStatus;
       if (statusValue === 'pending') {
-        status = 'upcoming' as EventStatus;
+        mappedStatus = 'upcoming';
       } else if (statusValue === 'done') {
-        status = 'completed' as EventStatus;
+        mappedStatus = 'completed';
       } else {
-        status = statusValue as EventStatus;
+        mappedStatus = statusValue;
       }
       
-      statusCounts[status] = (statusCounts[status] || 0) + 1;
+      // Add to the appropriate counter
+      statusCounts[mappedStatus] = (statusCounts[mappedStatus] || 0) + 1;
+      
+      // Also increment the legacy status if it exists
+      if (statusValue === 'pending' || statusValue === 'done') {
+        statusCounts[statusValue] = (statusCounts[statusValue] || 0) + 1;
+      }
     } else {
       // Default to upcoming if no status
       statusCounts.upcoming += 1;
     }
   });
+
+  // Combine legacy status counts with new status names for display
+  const displayCounts = {
+    upcoming: statusCounts.upcoming + statusCounts.pending,
+    completed: statusCounts.completed + statusCounts.done,
+    delayed: statusCounts.delayed
+  };
 
   const totalActivities = activities.length;
   
@@ -85,21 +100,21 @@ const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({ activities }) =
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <MetricCard 
           title="Upcoming Activities" 
-          count={statusCounts.upcoming} 
+          count={displayCounts.upcoming} 
           icon={Clock} 
           color="text-orange-500"
           bgColor="bg-orange-100"
         />
         <MetricCard 
           title="Completed Activities" 
-          count={statusCounts.completed} 
+          count={displayCounts.completed} 
           icon={Check} 
           color="text-green-500"
           bgColor="bg-green-100"
         />
         <MetricCard 
           title="Delayed Activities" 
-          count={statusCounts.delayed} 
+          count={displayCounts.delayed} 
           icon={ActivityIcon} 
           color="text-red-500"
           bgColor="bg-red-100"
