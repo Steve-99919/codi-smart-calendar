@@ -379,3 +379,23 @@ export const hasDateConflict = (
     conflictingActivities: conflicts.map(activity => activity.activityName)
   };
 };
+
+// Function to get a valid prep date (avoiding weekends/holidays based on preferences)
+export const getValidPrepDate = (date: Date, allowWeekends: boolean, allowHolidays: boolean): Date => {
+  let validDate = new Date(date);
+  let dateStr = format(validDate, 'dd/MM/yyyy');
+  let attempts = 0;
+  const MAX_ATTEMPTS = 10; // Safety limit to prevent infinite loops
+  
+  while (((!allowWeekends && isWeekend(dateStr)) || 
+         (!allowHolidays && isPublicHoliday(dateStr))) && 
+         attempts < MAX_ATTEMPTS) {
+    // If date falls on a weekend or holiday and they're not allowed, 
+    // move back one more day
+    validDate.setDate(validDate.getDate() - 1);
+    dateStr = format(validDate, 'dd/MM/yyyy');
+    attempts++;
+  }
+  
+  return validDate;
+};

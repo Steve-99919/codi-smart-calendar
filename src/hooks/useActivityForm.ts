@@ -1,8 +1,8 @@
 
 import { useState } from 'react';
 import { CSVRow } from '@/types/csv';
-import { isWeekend, isPublicHoliday, isValidDateFormat } from '@/utils/dateUtils';
-import { format } from "date-fns";
+import { isWeekend, isPublicHoliday, isValidDateFormat, getValidPrepDate } from '@/utils/dateUtils';
+import { format, subDays } from "date-fns";
 import { toast } from "sonner";
 
 interface UseActivityFormProps {
@@ -18,6 +18,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
   const [selectedPrepDate, setSelectedPrepDate] = useState<Date>();
   const [selectedGoDate, setSelectedGoDate] = useState<Date>();
   const [activityIdPrefix, setActivityIdPrefix] = useState<string>('A');
+  const [autoPrepDate, setAutoPrepDate] = useState<boolean>(true);
   const [newActivity, setNewActivity] = useState<CSVRow>({
     activityId: "",
     activityName: "",
@@ -29,6 +30,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     isHoliday: false
   });
   const [isProcessingActivity, setIsProcessingActivity] = useState(false);
+  const [activityHistory, setActivityHistory] = useState<CSVRow[][]>([]);
 
   const parseActivityId = (id: string) => {
     const match = id.match(/([A-Za-z]+)(\d+)/);
@@ -58,6 +60,21 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
       ...prev,
       activityId: `${prefix}${nextNumber}`
     }));
+  };
+
+  const calculatePrepDate = (goDate: Date): Date => {
+    let prepDate = subDays(goDate, 3);
+    if (!allowWeekends && isWeekend(format(prepDate, 'dd/MM/yyyy'))) {
+      // If weekend not allowed and it falls on weekend, move to Friday
+      prepDate = getValidPrepDate(prepDate, allowWeekends, allowHolidays);
+    }
+    
+    if (!allowHolidays && isPublicHoliday(format(prepDate, 'dd/MM/yyyy'))) {
+      // If holiday not allowed and it falls on holiday, move to previous business day
+      prepDate = getValidPrepDate(prepDate, allowWeekends, allowHolidays);
+    }
+    
+    return prepDate;
   };
 
   const handlePrepDateSelect = (date: Date | undefined) => {
@@ -109,6 +126,16 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
         ...prev,
         goDate: formattedDate
       }));
+
+      // Auto calculate prep date if enabled
+      if (autoPrepDate) {
+        const prepDate = calculatePrepDate(date);
+        setSelectedPrepDate(prepDate);
+        setNewActivity(prev => ({
+          ...prev,
+          prepDate: format(prepDate, 'dd/MM/yyyy')
+        }));
+      }
     }
   };
 
@@ -242,6 +269,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     selectedGoDate,
     activityIdPrefix,
     newActivity,
+    autoPrepDate,
     handlePrefixChange,
     handlePrepDateSelect,
     handleGoDateSelect,

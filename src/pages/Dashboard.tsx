@@ -1,6 +1,8 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
+import { Undo } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import CSVUpload from '@/components/CSVUpload';
 import CSVTable from '@/components/CSVTable';
@@ -11,6 +13,7 @@ import { useCSVPersistence } from '@/hooks/useCSVPersistence';
 import { checkExistingActivities, saveActivitiesToDatabase, exportCSVFile } from '@/services/activityService';
 import { addActivity } from '@/services/activityDataService';
 import { CSVRow } from '@/types/csv';
+import { Button } from '@/components/ui/button';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -18,6 +21,7 @@ const Dashboard = () => {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [showTrackingSubscriptionDialog, setShowTrackingSubscriptionDialog] = useState(false);
   const [savingToDatabase, setSavingToDatabase] = useState(false);
+  const [csvHistory, setCsvHistory] = useState<CSVRow[][]>([]);
   
   // Use our custom hook for CSV data persistence
   const {
@@ -50,6 +54,30 @@ const Dashboard = () => {
     
     checkSession();
   }, [navigate]);
+
+  // Store history when CSV data changes
+  useEffect(() => {
+    if (csvData.length > 0) {
+      setCsvHistory(prev => [...prev, [...csvData]]);
+    }
+  }, [csvData]);
+
+  const handleUndo = () => {
+    if (csvHistory.length > 1) {
+      // Get the previous state
+      const previousState = csvHistory[csvHistory.length - 2];
+      
+      // Update the current data
+      setCsvData([...previousState]);
+      
+      // Remove the last history entry
+      setCsvHistory(prev => prev.slice(0, -1));
+      
+      toast.success('Undo successful');
+    } else {
+      toast.info('Nothing to undo');
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -85,6 +113,9 @@ const Dashboard = () => {
   };
 
   const handleAddActivity = (newActivity: CSVRow) => {
+    // Save current state to history before modifying
+    setCsvHistory(prev => [...prev, [...csvData]]);
+    
     const updatedData = addActivity(csvData, newActivity);
     setCsvData(updatedData);
     toast.success(`Successfully added activity: ${newActivity.activityName}`);
@@ -136,12 +167,25 @@ const Dashboard = () => {
       
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white shadow rounded-lg p-6">
-          <h1 className="text-2xl font-bold mb-4">Smart Activity Manager</h1>
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">Smart Activity Manager</h1>
+            {hasUploadedFile && csvHistory.length > 1 && (
+              <Button 
+                variant="outline"
+                size="sm"
+                onClick={handleUndo}
+                className="flex items-center gap-2"
+              >
+                <Undo className="h-4 w-4" />
+                Undo
+              </Button>
+            )}
+          </div>
           
           {!hasUploadedFile ? (
             <CSVUpload onFileLoaded={handleFileLoaded} />
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-6 mt-4">
               <DashboardActions
                 onAddActivity={handleAddActivity}
                 data={csvData}
@@ -154,7 +198,11 @@ const Dashboard = () => {
               {csvData.length > 0 ? (
                 <CSVTable
                   data={csvData}
-                  onUpdateData={updateData}
+                  onUpdateData={(newData) => {
+                    // Save current state to history before updating
+                    setCsvHistory(prev => [...prev, [...csvData]]);
+                    updateData(newData);
+                  }}
                 />
               ) : (
                 <p className="text-center py-8 text-gray-500">No data available</p>

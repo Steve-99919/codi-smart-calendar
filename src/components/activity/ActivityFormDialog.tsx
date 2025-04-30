@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { CSVRow } from "@/types/csv";
-import { format } from "date-fns"; // Added the missing import
+import { format } from "date-fns";
 
 interface ActivityFormDialogProps {
   open: boolean;
@@ -23,6 +23,7 @@ interface ActivityFormDialogProps {
   handleGoDateSelect: (date: Date | undefined) => void;
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: React.FormEvent) => void;
+  autoPrepDate: boolean;
 }
 
 export const ActivityFormDialog = ({
@@ -37,7 +38,8 @@ export const ActivityFormDialog = ({
   handlePrepDateSelect,
   handleGoDateSelect,
   handleInputChange,
-  handleSubmit
+  handleSubmit,
+  autoPrepDate
 }: ActivityFormDialogProps) => {
   // Calculate the next ID to display
   const nextId = `${activityIdPrefix}${getNextNumber(activityIdPrefix)}`;
@@ -106,33 +108,6 @@ export const ActivityFormDialog = ({
             </div>
             
             <div className="space-y-2">
-              <Label>Prep Date*</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !selectedPrepDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedPrepDate ? format(selectedPrepDate, "dd/MM/yyyy") : <span>Pick a prep date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={selectedPrepDate}
-                    onSelect={handlePrepDateSelect}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            
-            <div className="space-y-2">
               <Label>Go Date*</Label>
               <Popover>
                 <PopoverTrigger asChild>
@@ -157,6 +132,38 @@ export const ActivityFormDialog = ({
                   />
                 </PopoverContent>
               </Popover>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Prep Date* {autoPrepDate && <span className="text-xs text-muted-foreground">(Auto-calculated)</span>}</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !selectedPrepDate && "text-muted-foreground"
+                    )}
+                    disabled={autoPrepDate}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedPrepDate ? format(selectedPrepDate, "dd/MM/yyyy") : <span>Pick a prep date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedPrepDate}
+                    onSelect={handlePrepDateSelect}
+                    initialFocus
+                    disabled={autoPrepDate}
+                    className={cn("p-3 pointer-events-auto", autoPrepDate && "opacity-50 cursor-not-allowed")}
+                  />
+                </PopoverContent>
+              </Popover>
+              {autoPrepDate && (
+                <p className="text-xs text-muted-foreground">Prep date is automatically set 3 days before the Go date.</p>
+              )}
             </div>
           </div>
           
