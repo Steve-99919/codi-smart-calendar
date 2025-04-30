@@ -11,17 +11,21 @@ interface PerformanceMetricsProps {
 const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({ activities }) => {
   // Calculate metrics
   const statusCounts: Record<EventStatus, number> = {
-    pending: 0,
-    done: 0,
+    upcoming: 0,
+    completed: 0,
     delayed: 0
   };
 
   activities.forEach(activity => {
     if (activity.status) {
-      const status = activity.status.status as EventStatus;
+      // Map old status names to new ones if needed
+      let status = activity.status.status as EventStatus;
+      if (status === 'pending') status = 'upcoming';
+      if (status === 'done') status = 'completed';
+      
       statusCounts[status] = (statusCounts[status] || 0) + 1;
     } else {
-      statusCounts.pending += 1;
+      statusCounts.upcoming += 1;
     }
   });
 
@@ -71,15 +75,15 @@ const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({ activities }) =
       <h2 className="text-lg font-semibold mb-4">Performance Metrics</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <MetricCard 
-          title="Pending Activities" 
-          count={statusCounts.pending} 
+          title="Upcoming Activities" 
+          count={statusCounts.upcoming} 
           icon={Clock} 
           color="text-orange-500"
           bgColor="bg-orange-100"
         />
         <MetricCard 
           title="Completed Activities" 
-          count={statusCounts.done} 
+          count={statusCounts.completed} 
           icon={Check} 
           color="text-green-500"
           bgColor="bg-green-100"

@@ -42,7 +42,8 @@ serve(async (req: Request) => {
     );
   }
 
-  if (status !== "done" && status !== "delayed") {
+  // Validate the status - now using the new status names
+  if (status !== "completed" && status !== "delayed") {
     return new Response(
       JSON.stringify({ error: "Invalid status value" }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
@@ -155,10 +156,12 @@ serve(async (req: Request) => {
       }
     }
     
+    const statusMessage = status === "completed" ? "marked as completed" : "marked as delayed";
+    
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `Status updated to ${status}`, 
+        message: `Activity ${statusMessage}`, 
         activity: activity.activity_name,
         result 
       }),

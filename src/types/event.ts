@@ -1,5 +1,5 @@
 
-export type EventStatus = 'pending' | 'done' | 'delayed';
+export type EventStatus = 'upcoming' | 'completed' | 'delayed';
 
 export interface Activity {
   id: string;

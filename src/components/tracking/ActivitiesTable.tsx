@@ -56,7 +56,7 @@ const ActivitiesTable = ({
                     disabled={updatingStatus[activity.id]}
                   />
                 ) : (
-                  <span className="text-orange-500 italic">Pending</span>
+                  <span className="text-orange-500 italic">Upcoming</span>
                 )}
               </td>
             </tr>

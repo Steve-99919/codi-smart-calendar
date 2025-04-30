@@ -35,6 +35,10 @@ export const useActivities = (userId: string | undefined) => {
 
       const statusMap: Record<string, any> = {};
       statusesData.forEach((st) => {
+        // Map old status names to new ones
+        if (st.status === 'pending') st.status = 'upcoming';
+        if (st.status === 'done') st.status = 'completed';
+        
         statusMap[st.activity_id] = st;
       });
 
@@ -68,9 +72,9 @@ export const useActivities = (userId: string | undefined) => {
         .filter(activity => !statusMap[activity.id])
         .map(activity => ({
           activity_id: activity.id,
-          status: 'pending',
+          status: 'upcoming', // Changed from 'pending' to 'upcoming'
           status_updated_at: null,
-          event_type: 'pending',
+          event_type: 'upcoming', // Changed from 'pending' to 'upcoming'
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }));
@@ -103,7 +107,7 @@ export const useActivities = (userId: string | undefined) => {
         }))
       );
       
-      toast.success(`Initialized ${insertedData.length} missing statuses as Pending`);
+      toast.success(`Initialized ${insertedData.length} missing statuses as Upcoming`);
     } catch (error) {
       console.error('Unexpected error initializing missing statuses:', error);
       toast.error('Failed to initialize some statuses');

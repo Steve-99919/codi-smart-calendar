@@ -3,8 +3,8 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { EventStatus } from "@/types/event";
 
 const STATUS_OPTIONS = [
-  { value: 'pending', label: 'Pending', colorClass: 'bg-orange-500 text-white' },
-  { value: 'done', label: 'Done', colorClass: 'bg-green-500 text-white' },
+  { value: 'upcoming', label: 'Upcoming', colorClass: 'bg-orange-500 text-white' },
+  { value: 'completed', label: 'Completed', colorClass: 'bg-green-500 text-white' },
   { value: 'delayed', label: 'Delayed', colorClass: 'bg-red-500 text-white' },
 ];
 
@@ -20,13 +20,16 @@ export const getStatusColorClass = (status: string) => {
 };
 
 const StatusSelect = ({ value, onChange, disabled }: StatusSelectProps) => {
+  // Map old status names to new ones if needed
+  const mappedValue = value === 'pending' ? 'upcoming' : (value === 'done' ? 'completed' : value);
+  
   return (
     <Select
-      value={value}
+      value={mappedValue}
       onValueChange={(value: EventStatus) => onChange(value)}
       disabled={disabled}
     >
-      <SelectTrigger className={`w-28 h-8 text-sm ${getStatusColorClass(value)}`}>
+      <SelectTrigger className={`w-28 h-8 text-sm ${getStatusColorClass(mappedValue)}`}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

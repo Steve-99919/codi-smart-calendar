@@ -14,13 +14,14 @@ const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 // Function to send reminder emails
 export async function sendReminderEmails(
   pendingActivities: Activity[], 
-  userEmails: Record<string, string>
+  userEmails: Record<string, string>,
+  emailType: 'prep' | 'go' = 'prep'
 ) {
   if (!pendingActivities || pendingActivities.length === 0) {
     return [];
   }
 
-  console.log("Starting to send email reminders...");
+  console.log(`Starting to send ${emailType} date email reminders...`);
   
   const reminderResults = await Promise.all(
     pendingActivities.map(async (activity) => {
@@ -35,35 +36,64 @@ export async function sendReminderEmails(
       const tokenPayload = `${activity.id}:${statusId || 'new'}`;
       const verificationToken = urlSafeBase64Encode(tokenPayload);
       
-      const confirmUrl = `${APP_URL}/status-confirm?token=${verificationToken}&status=done`;
+      // Only need delayed option for prep date email, completed/delayed for go date
       const delayUrl = `${APP_URL}/status-confirm?token=${verificationToken}&status=delayed`;
+      const completeUrl = `${APP_URL}/status-confirm?token=${verificationToken}&status=completed`;
 
       console.log("Token payload:", tokenPayload);
       console.log("URL-safe encoded token:", verificationToken);
-      console.log("Confirmation URL:", confirmUrl);
-      console.log("Delay URL:", delayUrl);
-
+      
       try {
+        let htmlContent = '';
+        let subject = '';
+        
+        if (emailType === 'prep') {
+          subject = `Action Required: Upcoming Activity ${activity.activity_name}`;
+          
+          // For prep date emails, only show the delayed option
+          htmlContent = `
+            <h1>Upcoming Activity Notice</h1>
+            <p>Hello,</p>
+            <p>You have an upcoming activity "${activity.activity_name}" (ID: ${activity.activity_id}) scheduled for ${new Date(activity.go_date).toLocaleDateString()}.</p>
+            <p>Yesterday was the preparation date for this activity. If everything is on track, no action is needed.</p>
+            <p>If preparation didn't go well, please click the button below:</p>
+            <p>
+              <a href="${delayUrl}" style="background-color: #EF4444; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px;">
+                Mark as Delayed
+              </a>
+            </p>
+            <p>If you don't respond, the activity will remain in "Upcoming" status.</p>
+            <p>Thank you,<br>Activity Manager</p>
+          `;
+        } else { // go date email
+          subject = `Status Update Needed: Activity ${activity.activity_name}`;
+          
+          console.log("Completion URL:", completeUrl);
+          console.log("Delay URL:", delayUrl);
+          
+          // For go date emails, show both completed and delayed options
+          htmlContent = `
+            <h1>Activity Status Update</h1>
+            <p>Hello,</p>
+            <p>Your activity "${activity.activity_name}" (ID: ${activity.activity_id}) was scheduled to be completed yesterday.</p>
+            <p>Please confirm the current status of this activity:</p>
+            <p>
+              <a href="${completeUrl}" style="background-color: #10B981; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; margin-right: 10px;">
+                Completed Successfully
+              </a>
+              <a href="${delayUrl}" style="background-color: #EF4444; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px;">
+                Delayed
+              </a>
+            </p>
+            <p>Thank you,<br>Activity Manager</p>
+          `;
+        }
+
         const emailResult = await resend.emails.send({
           from: "Activity Manager <notifications@mightytouchstrategies.org>",
           to: [email],
-          subject: `Status Update Required: ${activity.activity_name}`,
-          html: `
-            <h1>Activity Status Update</h1>
-            <p>Hello,</p>
-            <p>Your activity "${activity.activity_name}" (ID: ${activity.activity_id}) had its preparation phase yesterday.</p>
-            <p>Please confirm if this activity is progressing as planned and expected to be completed by the scheduled completion date (${new Date(activity.go_date).toLocaleDateString()}).</p>
-            <p>
-              <a href="${confirmUrl}" style="background-color: #10B981; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; margin-right: 10px;">
-                Yes, On Track
-              </a>
-              <a href="${delayUrl}" style="background-color: #EF4444; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px;">
-                No, Delayed
-              </a>
-            </p>
-            <p>If you don't respond, the activity will remain in "Pending" status.</p>
-            <p>Thank you,<br>Activity Manager</p>
-          `,
+          subject: subject,
+          html: htmlContent,
         });
 
         console.log(`Email sent successfully for activity ${activity.activity_id} to ${email}:`, emailResult);

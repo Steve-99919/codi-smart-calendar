@@ -3,7 +3,8 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { 
   corsHeaders, 
   initSupabase, 
-  fetchYesterdayActivities, 
+  fetchYesterdayActivities,
+  fetchYesterdayGoDateActivities,
   filterPendingActivities, 
   fetchUserEmails 
 } from "./utils.ts";
@@ -17,36 +18,54 @@ const handleStatusReminders = async (): Promise<Response> => {
     // Initialize the Supabase client
     const supabase = initSupabase();
     
+    // --- Process prep date reminders first ---
+    
     // Step 1: Fetch activities with yesterday's prep date
-    const { activities } = await fetchYesterdayActivities(supabase);
+    const { activities: prepDateActivities } = await fetchYesterdayActivities(supabase);
 
-    // Step 2: Filter for pending activities
-    const pendingActivities = filterPendingActivities(activities);
+    // Step 2: Filter for pending (now "upcoming") activities
+    const upcomingActivities = filterPendingActivities(prepDateActivities);
 
-    // Step 3: If no pending activities, return early
-    if (!pendingActivities || pendingActivities.length === 0) {
-      console.log("No pending activities requiring reminders, finishing execution");
-      return new Response(
-        JSON.stringify({ message: "No pending activities requiring reminders" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-      );
+    // Step 3: Process prep date emails if there are any upcoming activities
+    let prepDateResults = [];
+    if (upcomingActivities && upcomingActivities.length > 0) {
+      // Get user emails
+      const userEmails = await fetchUserEmails(supabase, upcomingActivities);
+      
+      // Send prep date reminder emails
+      prepDateResults = await sendReminderEmails(upcomingActivities, userEmails, 'prep');
     }
-
-    // Step 4: Get user emails
-    const userEmails = await fetchUserEmails(supabase, pendingActivities);
-
-    // Step 5: Send reminder emails
-    const reminderResults = await sendReminderEmails(pendingActivities, userEmails);
-
-    // Step 6: Return the result summary
-    const successCount = reminderResults.filter(r => r.success).length;
+    
+    // --- Process go date reminders next ---
+    
+    // Step 4: Fetch activities with yesterday's go date
+    const { activities: goDateActivities } = await fetchYesterdayGoDateActivities(supabase);
+    
+    // Step 5: Filter for activities that need status updates
+    const needUpdateActivities = filterPendingActivities(goDateActivities);
+    
+    // Step 6: Process go date emails if there are any activities needing updates
+    let goDateResults = [];
+    if (needUpdateActivities && needUpdateActivities.length > 0) {
+      // Get user emails
+      const userEmails = await fetchUserEmails(supabase, needUpdateActivities);
+      
+      // Send go date reminder emails
+      goDateResults = await sendReminderEmails(needUpdateActivities, userEmails, 'go');
+    }
+    
+    // Step 7: Return the result summary
+    const totalActivities = (upcomingActivities?.length || 0) + (needUpdateActivities?.length || 0);
+    const totalSuccessCount = prepDateResults.filter(r => r.success).length + 
+                             goDateResults.filter(r => r.success).length;
     
     return new Response(
       JSON.stringify({ 
         message: "Status reminders processed", 
-        results: reminderResults,
-        activityCount: pendingActivities.length,
-        successCount: successCount
+        prepDateResults: prepDateResults,
+        goDateResults: goDateResults,
+        totalActivityCount: totalActivities,
+        totalSuccessCount: totalSuccessCount
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );

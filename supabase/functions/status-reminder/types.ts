@@ -3,7 +3,7 @@
 
 export interface EventStatus {
   id: string;
-  status: 'pending' | 'done' | 'delayed';
+  status: 'upcoming' | 'completed' | 'delayed' | 'pending' | 'done';
 }
 
 export interface Activity {
