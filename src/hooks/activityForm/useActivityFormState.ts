@@ -66,8 +66,9 @@ export const useActivityFormState = ({
       isWeekend: false,
       isHoliday: false
     });
-    setSelectedPrepDate(undefined);
-    setSelectedGoDate(undefined);
+    // Fix: Use the functions from useActivityFormDates instead of direct state setters
+    handlePrepDateSelect(undefined);
+    handleGoDateSelect(undefined);
   };
 
   return {

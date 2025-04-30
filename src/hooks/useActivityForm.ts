@@ -4,6 +4,7 @@ import { CSVRow } from '@/types/csv';
 import { useActivitySettings } from './useActivitySettings';
 import { useActivityFormState } from './activityForm/useActivityFormState';
 import { useActivityFormSubmission } from './activityForm/useActivityFormSubmission';
+import { getNextNumber } from '@/services/activityDataService';
 
 interface UseActivityFormProps {
   data: CSVRow[];
@@ -44,7 +45,6 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
 
   const {
     handlePrefixChange,
-    handleOpenAddActivity,
     handleSubmit: submitHandler
   } = useActivityFormSubmission({
     data,
@@ -56,14 +56,16 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     validateForm
   });
 
+  // Fix: removed the duplicate handleOpenAddActivity from useActivityFormSubmission
   const handleOpenAddActivity = () => {
-    const nextId = handleOpenAddActivity();
+    const nextId = `${activityIdPrefix}${getNextNumber(data, activityIdPrefix)}`;
     setNewActivity(prev => ({
       ...prev,
       activityId: nextId
     }));
     
     setShowPreferenceDialog(true);
+    return nextId;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -90,6 +92,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     handleProceedToForm,
     handleInputChange,
     handleSubmit,
-    getNextNumber: (prefix: string) => getNextNumber(data, prefix)
+    getNextNumber: (prefix: string) => getNextNumber(data, prefix),
+    autoPrepDate: true  // Add the autoPrepDate property that was missing
   };
 };
