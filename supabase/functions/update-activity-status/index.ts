@@ -31,8 +31,8 @@ function urlSafeBase64Decode(str: string): string {
 
 // Map external status names to internal database status names if needed
 function mapStatusToInternal(status: string): string {
-  if (status === 'completed') return 'done';
-  if (status === 'upcoming') return 'pending';
+  // For now, use the same values in the database
+  // This function exists in case we need to map values in the future
   return status;
 }
 
@@ -82,8 +82,7 @@ serve(async (req: Request) => {
     // Get the internal database status value
     const internalStatus = mapStatusToInternal(status);
     
-    // Fix: Use the same mapped status value for both status and event_type
-    // This ensures both fields use the same compatible value
+    // Use the same value for both status and event_type
     const mappedStatus = internalStatus;
     const mappedEventType = mappedStatus;
     

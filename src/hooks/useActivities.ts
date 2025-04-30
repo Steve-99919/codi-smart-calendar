@@ -26,6 +26,13 @@ export const useActivities = (userId: string | undefined) => {
     return 'upcoming';
   };
 
+  // Helper function to map front-end status to database-accepted values
+  const mapStatusToDatabase = (status: EventStatus): string => {
+    // For now, use the same values in the database
+    // This function allows us to handle any future mapping if needed
+    return status;
+  };
+
   const fetchActivities = async () => {
     if (!userId) return;
     
@@ -102,13 +109,14 @@ export const useActivities = (userId: string | undefined) => {
     try {
       for (const activity of missingStatusActivities) {
         const defaultStatus: EventStatus = 'upcoming';
+        const dbStatus = mapStatusToDatabase(defaultStatus);
         
         const { data, error } = await supabase
           .from('event_statuses')
           .insert({
             activity_id: activity.id,
-            status: defaultStatus,
-            event_type: defaultStatus, // Use the same value for both fields
+            status: dbStatus,
+            event_type: dbStatus, // Use the same value for both fields
             status_updated_at: new Date().toISOString(),
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -160,6 +168,9 @@ export const useActivities = (userId: string | undefined) => {
 
   const handleStatusChange = async (activityId: string, newStatus: EventStatus) => {
     try {
+      // Map the front-end status to the database status value
+      const dbStatus = mapStatusToDatabase(newStatus);
+      
       // First check if the status record exists
       const existingStatus = eventStatuses[activityId];
       
@@ -169,8 +180,8 @@ export const useActivities = (userId: string | undefined) => {
           .from('event_statuses')
           .insert({ 
             activity_id: activityId,
-            status: newStatus,
-            event_type: newStatus, // Use the same value for both fields
+            status: dbStatus,
+            event_type: dbStatus, // Use the same value for both fields
             status_updated_at: new Date().toISOString() 
           })
           .select('*')
@@ -209,8 +220,8 @@ export const useActivities = (userId: string | undefined) => {
       const { error } = await supabase
         .from('event_statuses')
         .update({ 
-          status: newStatus,
-          event_type: newStatus, // Update the event_type to match the status
+          status: dbStatus,
+          event_type: dbStatus, // Update the event_type to match the status
           status_updated_at: new Date().toISOString() 
         })
         .eq('id', existingStatus.id);
