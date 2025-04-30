@@ -40,8 +40,9 @@ export async function sendReminderEmails(
       const verificationToken = urlSafeBase64Encode(tokenPayload);
       
       // Use proper status values for the URLs - these must match the valid statuses in the update function
+      // Using 'done' instead of 'completed' to ensure compatibility with the database status values
       const delayUrl = `${APP_URL}/status-confirm?token=${verificationToken}&status=delayed`;
-      const completeUrl = `${APP_URL}/status-confirm?token=${verificationToken}&status=completed`;
+      const completeUrl = `${APP_URL}/status-confirm?token=${verificationToken}&status=done`;
 
       console.log("Token payload:", tokenPayload);
       console.log("URL-safe encoded token:", verificationToken);
