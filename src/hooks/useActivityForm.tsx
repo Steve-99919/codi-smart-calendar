@@ -4,7 +4,7 @@ import { CSVRow } from '@/types/csv';
 import { useActivitySettings } from './useActivitySettings';
 import { useActivityFormState } from './useActivityFormState';
 import { isWeekend, isPublicHoliday } from '@/utils/dateUtils';
-import { getNextNumber } from '@/services/activityDataService';
+import { getNextNumber, parseActivityId } from '@/services/activityDataService';
 import { toast } from "sonner";
 
 interface UseActivityFormProps {
@@ -40,7 +40,8 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     handleGoDateSelect,
     handleInputChange,
     validateForm,
-    resetForm
+    resetForm,
+    setNewActivity
   } = useActivityFormState({
     data,
     activityIdPrefix,
@@ -64,42 +65,27 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
   };
   
   const handleOpenAddActivity = () => {
-    // Find the most common prefix pattern in existing activities
     let defaultPrefix = 'A';
+
     if (data.length > 0) {
-      // Get all prefixes from existing activity IDs
-      const prefixes = data
-        .map(item => {
-          const parsed = item.activityId.match(/^(.*?)(\d+)$/);
-          return parsed ? parsed[1] : 'A';
-        })
-        .filter(Boolean);
-      
-      // Count occurrences of each prefix
       const prefixCounts: Record<string, number> = {};
-      prefixes.forEach(prefix => {
-        prefixCounts[prefix] = (prefixCounts[prefix] || 0) + 1;
-      });
-      
-      // Find the most common prefix
-      let maxCount = 0;
-      Object.entries(prefixCounts).forEach(([prefix, count]) => {
-        if (count > maxCount) {
-          maxCount = count;
-          defaultPrefix = prefix;
+
+      data.forEach((row) => {
+        const match = row.activityId.match(/^([A-Za-z]+)/); // extract leading letters
+        if (match) {
+          const prefix = match[1];
+          prefixCounts[prefix] = (prefixCounts[prefix] || 0) + 1;
         }
       });
+
+      const mostCommonPrefix = Object.entries(prefixCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+      if (mostCommonPrefix) {
+        defaultPrefix = mostCommonPrefix;
+      }
     }
-    
-    // Set the discovered default prefix
+
     setActivityIdPrefix(defaultPrefix);
-    
-    const nextId = `${defaultPrefix}${getNextNumber(data, defaultPrefix)}`;
-    setNewActivity(prev => ({
-      ...prev,
-      activityId: nextId
-    }));
-    
+    updateActivityId(defaultPrefix);
     setShowPreferenceDialog(true);
   };
 
@@ -161,7 +147,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     handleProceedToForm,
     handleInputChange,
     handleSubmit,
-    getNextNumber,
-    data // Pass data to the ActivityFormDialog for ID generation
+    getNextNumber: (prefix: string) => getNextNumber(data, prefix),
+    data  // Now we're explicitly passing data through
   };
 };

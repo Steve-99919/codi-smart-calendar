@@ -31,8 +31,7 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
     handleProceedToForm,
     handleInputChange,
     handleSubmit,
-    getNextNumber,
-    data: formData
+    getNextNumber
   } = useActivityForm({ data, onAddActivity });
 
   return (
@@ -56,7 +55,7 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
         selectedPrepDate={selectedPrepDate}
         selectedGoDate={selectedGoDate}
         newActivity={newActivity}
-        getNextNumber={getNextNumber}
+        getNextNumber={(prefix) => getNextNumber(prefix)}
         handlePrefixChange={handlePrefixChange}
         handlePrepDateSelect={handlePrepDateSelect}
         handleGoDateSelect={handleGoDateSelect}

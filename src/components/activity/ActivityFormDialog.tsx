@@ -17,7 +17,7 @@ interface ActivityFormDialogProps {
   selectedPrepDate?: Date;
   selectedGoDate?: Date;
   newActivity: CSVRow;
-  getNextNumber: (data: CSVRow[], prefix: string) => number;
+  getNextNumber: (prefix: string) => number;
   handlePrefixChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handlePrepDateSelect: (date: Date | undefined) => void;
   handleGoDateSelect: (date: Date | undefined) => void;
@@ -43,8 +43,8 @@ export const ActivityFormDialog = ({
   autoPrepDate,
   data
 }: ActivityFormDialogProps) => {
-  // Calculate the next ID to display based on the current data
-  const nextId = `${activityIdPrefix}${getNextNumber(data, activityIdPrefix)}`;
+  // Calculate the next ID to display based on the current prefix
+  const nextId = `${activityIdPrefix}${getNextNumber(activityIdPrefix)}`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

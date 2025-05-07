@@ -1,4 +1,3 @@
-
 import { CSVRow } from '@/types/csv';
 import { isDateBefore } from '@/utils/dateUtils';
 
@@ -61,8 +60,6 @@ export const updateActivity = (data: CSVRow[], index: number, updatedRow: CSVRow
   
   return newData;
 };
-
-// REMOVED reindexActivities function since we don't want to change activity IDs
 
 // Move activities forward in time
 export const moveActivitiesForward = (data: CSVRow[], startIndex: number, days: number = 5): CSVRow[] => {
