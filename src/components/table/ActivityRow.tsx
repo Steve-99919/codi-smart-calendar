@@ -4,7 +4,6 @@ import { TableRow, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { ArrowRightCircle, Trash2 } from "lucide-react";
 import DateCell from "./DateCell";
-import { format } from 'date-fns';
 
 interface ActivityRowProps {
   row: CSVRow;
@@ -25,22 +24,7 @@ const ActivityRow = ({
   onDeleteActivity,
   onDateSelect
 }: ActivityRowProps) => {
-  const formatDateString = (date: Date): string => {
-    return format(date, 'dd/MM/yyyy');
-  };
-
-  const handlePrepDateSelect = (date: Date | undefined) => {
-    if (date) {
-      onDateSelect(index, 'prepDate', date);
-    }
-  };
-
-  const handleGoDateSelect = (date: Date | undefined) => {
-    if (date) {
-      onDateSelect(index, 'goDate', date);
-    }
-  };
-
+  // Rendering with non-editable DateCells
   return (
     <TableRow 
       className={`cursor-pointer hover:bg-gray-50 ${highlightClass}`}
@@ -52,13 +36,13 @@ const ActivityRow = ({
       <TableCell>
         <DateCell 
           dateValue={row.prepDate} 
-          onDateSelect={handlePrepDateSelect} 
+          editable={false}
         />
       </TableCell>
       <TableCell>
         <DateCell 
           dateValue={row.goDate} 
-          onDateSelect={handleGoDateSelect} 
+          editable={false}
         />
       </TableCell>
       <TableCell>
