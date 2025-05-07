@@ -64,7 +64,37 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
   };
   
   const handleOpenAddActivity = () => {
-    const nextId = `${activityIdPrefix}${getNextNumber(data, activityIdPrefix)}`;
+    // Find the most common prefix pattern in existing activities
+    let defaultPrefix = 'A';
+    if (data.length > 0) {
+      // Get all prefixes from existing activity IDs
+      const prefixes = data
+        .map(item => {
+          const parsed = item.activityId.match(/^(.*?)(\d+)$/);
+          return parsed ? parsed[1] : 'A';
+        })
+        .filter(Boolean);
+      
+      // Count occurrences of each prefix
+      const prefixCounts: Record<string, number> = {};
+      prefixes.forEach(prefix => {
+        prefixCounts[prefix] = (prefixCounts[prefix] || 0) + 1;
+      });
+      
+      // Find the most common prefix
+      let maxCount = 0;
+      Object.entries(prefixCounts).forEach(([prefix, count]) => {
+        if (count > maxCount) {
+          maxCount = count;
+          defaultPrefix = prefix;
+        }
+      });
+    }
+    
+    // Set the discovered default prefix
+    setActivityIdPrefix(defaultPrefix);
+    
+    const nextId = `${defaultPrefix}${getNextNumber(data, defaultPrefix)}`;
     setNewActivity(prev => ({
       ...prev,
       activityId: nextId
@@ -73,6 +103,13 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     setShowPreferenceDialog(true);
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (validateForm()) {
+      submitActivity();
+    }
+  };
+  
   const submitActivity = () => {
     if (isProcessingActivity) return;
     
@@ -101,13 +138,6 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
       console.error('Error submitting activity:', error);
       setIsProcessingActivity(false);
       toast.error("An error occurred while adding the activity");
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (validateForm()) {
-      submitActivity();
     }
   };
 

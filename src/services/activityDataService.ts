@@ -5,6 +5,7 @@ import { isDateBefore } from '@/utils/dateUtils';
 // Parse activity ID to extract prefix and number parts
 export const parseActivityId = (id: string) => {
   // Match the last series of digits at the end of the string
+  // This pattern will match any character sequence followed by digits at the end
   const match = id.match(/^(.*?)(\d+)$/);
   return match ? { prefix: match[1], number: parseInt(match[2]) } : null;
 };

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { CSVRow } from '@/types/csv';
 import { toast } from "sonner";
@@ -44,23 +43,13 @@ export const useCSVPersistence = () => {
         return;
       }
       
-      const processedData = parsedData.map((row, index) => {
-        const match = row.activityId.match(/([A-Za-z]+)(\d+)/);
-        if (!match) {
-          return {
-            ...row,
-            activityId: `A${index + 1}`
-          };
-        }
-        return row;
-      });
-      
-      setCsvData(processedData);
+      // Keep all activity IDs as they are - don't modify them
+      setCsvData(parsedData);
       setHasUploadedFile(true);
-      toast.success(`Successfully loaded ${processedData.length} rows of data`);
+      toast.success(`Successfully loaded ${parsedData.length} rows of data`);
       
       // Save to localStorage
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(processedData));
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(parsedData));
     } catch (error) {
       console.error('Error parsing CSV:', error);
       toast.error('Failed to parse CSV file');
