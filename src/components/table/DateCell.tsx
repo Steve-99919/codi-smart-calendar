@@ -1,3 +1,4 @@
+
 import { format } from 'date-fns';
 import { CalendarIcon } from "lucide-react";
 import {
@@ -21,7 +22,7 @@ const DateCell = ({ dateValue, onDateSelect, editable = false }: DateCellProps) 
     return new Date(dateStr.split('/').reverse().join('-'));
   };
 
-  // If not editable, just render the date value
+  // If not editable, just render the date value without the calendar icon or popover
   if (!editable || !onDateSelect) {
     return <div className="px-2 py-1">{dateValue}</div>;
   }
@@ -30,7 +31,7 @@ const DateCell = ({ dateValue, onDateSelect, editable = false }: DateCellProps) 
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <div className="flex items-center gap-1 px-2 py-1 rounded cursor-pointer">
+        <div className="flex items-center gap-1 px-2 py-1 rounded cursor-pointer hover:bg-gray-100">
           <span>{dateValue}</span>
           <CalendarIcon className="h-3 w-3" />
         </div>

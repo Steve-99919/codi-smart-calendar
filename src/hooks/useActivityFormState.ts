@@ -1,9 +1,9 @@
 
 import { useState } from 'react';
 import { CSVRow } from '@/types/csv';
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import { toast } from "sonner";
-import { isWeekend, isPublicHoliday, isValidDateFormat } from '@/utils/dateUtils';
+import { isWeekend, isPublicHoliday, isValidDateFormat, getValidPrepDate } from '@/utils/dateUtils';
 import { getNextNumber } from '@/services/activityDataService';
 
 interface UseActivityFormStateProps {
@@ -78,10 +78,34 @@ export const useActivityFormState = ({
         return;
       }
       
-      setNewActivity(prev => ({
-        ...prev,
-        goDate: formattedDate
-      }));
+      // Calculate prep date (3 days before go date)
+      const prepDate = subDays(date, 3);
+      const prepDateFormatted = format(prepDate, 'dd/MM/yyyy');
+      const isPrepOnWeekend = isWeekend(prepDateFormatted);
+      const isPrepOnHoliday = isPublicHoliday(prepDateFormatted);
+      
+      // If prep date would fall on a weekend/holiday, adjust it based on preferences
+      if ((isPrepOnWeekend && !allowWeekends) || (isPrepOnHoliday && !allowHolidays)) {
+        // Get a valid prep date that respects the preferences
+        const validPrepDate = getValidPrepDate(prepDate, allowWeekends, allowHolidays);
+        const validPrepDateFormatted = format(validPrepDate, 'dd/MM/yyyy');
+        
+        setSelectedPrepDate(validPrepDate);
+        setNewActivity(prev => ({
+          ...prev,
+          goDate: formattedDate,
+          prepDate: validPrepDateFormatted
+        }));
+        
+        toast.info("Prep date has been automatically adjusted to avoid weekend/holiday based on your preferences");
+      } else {
+        setSelectedPrepDate(prepDate);
+        setNewActivity(prev => ({
+          ...prev,
+          goDate: formattedDate,
+          prepDate: prepDateFormatted
+        }));
+      }
     }
   };
 

@@ -24,7 +24,6 @@ const ActivityRow = ({
   onDeleteActivity,
   onDateSelect
 }: ActivityRowProps) => {
-  // Rendering with non-editable DateCells
   return (
     <TableRow 
       className={`cursor-pointer hover:bg-gray-50 ${highlightClass}`}
