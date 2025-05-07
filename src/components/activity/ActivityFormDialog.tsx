@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -17,13 +16,14 @@ interface ActivityFormDialogProps {
   selectedPrepDate?: Date;
   selectedGoDate?: Date;
   newActivity: CSVRow;
-  getNextNumber: (prefix: string) => number;
+  getNextNumber: (data: CSVRow[], prefix: string) => number;
   handlePrefixChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handlePrepDateSelect: (date: Date | undefined) => void;
   handleGoDateSelect: (date: Date | undefined) => void;
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: React.FormEvent) => void;
   autoPrepDate: boolean;
+  data: CSVRow[];
 }
 
 export const ActivityFormDialog = ({
@@ -39,10 +39,11 @@ export const ActivityFormDialog = ({
   handleGoDateSelect,
   handleInputChange,
   handleSubmit,
-  autoPrepDate
+  autoPrepDate,
+  data
 }: ActivityFormDialogProps) => {
-  // Calculate the next ID to display
-  const nextId = `${activityIdPrefix}${getNextNumber(activityIdPrefix)}`;
+  // Calculate the next ID to display based on the current data
+  const nextId = `${activityIdPrefix}${getNextNumber(data, activityIdPrefix)}`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -62,8 +63,8 @@ export const ActivityFormDialog = ({
                 id="activityIdPrefix"
                 value={activityIdPrefix}
                 onChange={handlePrefixChange}
-                maxLength={5}
-                className="w-24"
+                maxLength={20} // Allowing longer prefixes for complex IDs
+                className="w-64" // Wider input for longer prefixes
               />
               <div className="text-sm text-gray-500">
                 Next ID will be: {nextId}

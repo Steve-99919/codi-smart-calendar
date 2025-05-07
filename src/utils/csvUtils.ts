@@ -43,7 +43,7 @@ export const parseCSV = (content: string): CSVRow[] => {
       const goDate = formatDate(values[5]);
       
       const csvRow: CSVRow = {
-        activityId: values[0],
+        activityId: values[0], // Accept any format of activity ID as is
         activityName: values[1],
         description: values[2],
         strategy: values[3],

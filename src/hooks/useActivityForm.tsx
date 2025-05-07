@@ -49,8 +49,9 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
   });
 
   const handlePrefixChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newPrefix = e.target.value.replace(/[^A-Za-z]/g, '');
-    setActivityIdPrefix(newPrefix || 'A'); // Ensure we always have at least one character
+    // Allow more complex prefixes - don't strip out non-letter characters
+    const newPrefix = e.target.value;
+    setActivityIdPrefix(newPrefix || 'A');
     updateActivityId(newPrefix || 'A');
   };
 
@@ -130,6 +131,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     handleProceedToForm,
     handleInputChange,
     handleSubmit,
-    getNextNumber
+    getNextNumber,
+    data // Pass data to the ActivityFormDialog for ID generation
   };
 };

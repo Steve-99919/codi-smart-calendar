@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { CSVRow } from "../types/csv";
@@ -9,7 +8,6 @@ import { useTableFilters } from '@/hooks/useTableFilters';
 import TableFilters from './table/TableFilters';
 import ActivityRow from './table/ActivityRow';
 import { addDaysToDate } from '@/utils/dateUtils';
-import { parseActivityId, reindexActivities } from '@/services/activityDataService';
 
 interface CSVTableProps {
   data: CSVRow[];
@@ -35,9 +33,6 @@ const CSVTable = ({ data, onUpdateData }: CSVTableProps) => {
   const handleDeleteActivity = (index: number) => {
     const newData = [...data];
     newData.splice(index, 1);
-    
-    reindexActivities(newData);
-    
     onUpdateData(newData);
     toast.success('Activity deleted successfully');
   };

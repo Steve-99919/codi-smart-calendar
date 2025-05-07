@@ -2,111 +2,68 @@
 import { CSVRow } from '@/types/csv';
 import { isDateBefore } from '@/utils/dateUtils';
 
+// Parse activity ID to extract prefix and number parts
 export const parseActivityId = (id: string) => {
-  const match = id.match(/([A-Za-z]+)(\d+)/);
+  // Match the last series of digits at the end of the string
+  const match = id.match(/^(.*?)(\d+)$/);
   return match ? { prefix: match[1], number: parseInt(match[2]) } : null;
 };
 
+// Get the next sequential number for a given prefix
 export const getNextNumber = (data: CSVRow[], prefix: string) => {
+  // Filter for IDs that have the same prefix pattern
   const relevantIds = data
     .map(item => parseActivityId(item.activityId))
     .filter(parsed => parsed?.prefix === prefix);
   
   if (relevantIds.length === 0) return 1;
   
+  // Find the highest number used with this prefix
   const maxNumber = Math.max(...relevantIds.map(parsed => parsed?.number || 0));
   return maxNumber + 1;
 };
 
+// Add a new activity while preserving existing IDs
 export const addActivity = (data: CSVRow[], newActivity: CSVRow): CSVRow[] => {
   const newData = [...data];
   
+  // Find insertion point based on date order
   const insertIndex = newData.findIndex(
     item => !isDateBefore(item.prepDate, newActivity.prepDate)
   );
   
+  // Insert at the correct position based on date
   if (insertIndex >= 0) {
     newData.splice(insertIndex, 0, newActivity);
-    reindexActivities(newData);
   } else {
     newData.push(newActivity);
-    
-    const parsed = parseActivityId(newActivity.activityId);
-    if (parsed) {
-      const samePrefix = newData.filter(row => {
-        const p = parseActivityId(row.activityId);
-        return p?.prefix === parsed.prefix;
-      });
-      
-      const numbers = samePrefix
-        .map(row => {
-          const p = parseActivityId(row.activityId);
-          return p ? p.number : 0;
-        })
-        .filter(num => num > 0);
-      
-      const maxNumber = numbers.length > 0 ? Math.max(...numbers) : 0;
-      newActivity.activityId = `${parsed.prefix}${maxNumber + 1}`;
-    }
   }
   
   return newData;
 };
 
+// Update an activity while preserving IDs
 export const updateActivity = (data: CSVRow[], index: number, updatedRow: CSVRow): CSVRow[] => {
   const newData = [...data];
   newData.splice(index, 1);
   
+  // Find insertion point based on date order
   const insertIndex = newData.findIndex(
     item => !isDateBefore(item.prepDate, updatedRow.prepDate)
   );
   
   if (insertIndex >= 0) {
     newData.splice(insertIndex, 0, updatedRow);
-    reindexActivities(newData);
   } else {
     newData.push(updatedRow);
-    const parsed = parseActivityId(updatedRow.activityId);
-    if (parsed) {
-      const samePrefix = newData.filter(row => {
-        const p = parseActivityId(row.activityId);
-        return p?.prefix === parsed.prefix;
-      });
-      updatedRow.activityId = `${parsed.prefix}${samePrefix.length}`;
-    }
   }
   
   return newData;
 };
 
-export const reindexActivities = (data: CSVRow[]) => {
-  const prefixGroups = new Map<string, CSVRow[]>();
-  
-  data.forEach(row => {
-    const parsed = parseActivityId(row.activityId);
-    if (parsed) {
-      const { prefix } = parsed;
-      if (!prefixGroups.has(prefix)) {
-        prefixGroups.set(prefix, []);
-      }
-      prefixGroups.get(prefix)?.push(row);
-    }
-  });
-  
-  prefixGroups.forEach((rows, prefix) => {
-    rows.sort((a, b) => {
-      if (a.prepDate !== b.prepDate) {
-        return isDateBefore(a.prepDate, b.prepDate) ? -1 : 1;
-      }
-      return 0;
-    });
-    
-    rows.forEach((row, idx) => {
-      row.activityId = `${prefix}${idx + 1}`;
-    });
-  });
-};
+// REMOVED reindexActivities function since we don't want to change activity IDs
 
+// Move activities forward in time
 export const moveActivitiesForward = (data: CSVRow[], startIndex: number, days: number = 5): CSVRow[] => {
   const newData = [...data];
   
