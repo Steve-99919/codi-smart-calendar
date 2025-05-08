@@ -1,11 +1,12 @@
+
 import { CSVRow } from '@/types/csv';
 import { isDateBefore } from '@/utils/dateUtils';
 
-// Parse activity ID to extract prefix and number parts
+// Parse activity ID to extract prefix and number parts using improved regex
 export const parseActivityId = (id: string) => {
-  // Match the last series of digits at the end of the string
-  // This pattern will match any character sequence followed by digits at the end
-  const match = id.match(/^(.*?)(\d+)$/);
+  // This pattern will match any sequence of letters, numbers, dashes, and underscores
+  // followed by a series of digits at the end
+  const match = id.match(/^([A-Za-z0-9\-_]+?)(\d+)$/);
   return match ? { prefix: match[1], number: parseInt(match[2]) } : null;
 };
 
@@ -21,6 +22,30 @@ export const getNextNumber = (data: CSVRow[], prefix: string) => {
   // Find the highest number used with this prefix
   const maxNumber = Math.max(...relevantIds.map(parsed => parsed?.number || 0));
   return maxNumber + 1;
+};
+
+// Get the first available number for a given prefix (filling gaps)
+export const getNextAvailableNumber = (data: CSVRow[], prefix: string) => {
+  // Filter for IDs that have the same prefix pattern
+  const relevantIds = data
+    .map(item => parseActivityId(item.activityId))
+    .filter(parsed => parsed?.prefix === prefix);
+  
+  if (relevantIds.length === 0) return 1;
+  
+  // Get all numbers used with this prefix
+  const usedNumbers = relevantIds.map(parsed => parsed?.number || 0).sort((a, b) => a - b);
+  
+  // Find the first gap in the sequence or return max+1
+  let nextNumber = 1;
+  for (let i = 0; i < usedNumbers.length; i++) {
+    if (usedNumbers[i] !== nextNumber) {
+      return nextNumber;
+    }
+    nextNumber++;
+  }
+  
+  return nextNumber;
 };
 
 // Add a new activity while preserving existing IDs

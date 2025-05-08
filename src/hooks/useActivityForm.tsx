@@ -4,7 +4,7 @@ import { CSVRow } from '@/types/csv';
 import { useActivitySettings } from './useActivitySettings';
 import { useActivityFormState } from './useActivityFormState';
 import { isWeekend, isPublicHoliday } from '@/utils/dateUtils';
-import { getNextNumber, parseActivityId } from '@/services/activityDataService';
+import { getNextNumber, parseActivityId, getNextAvailableNumber } from '@/services/activityDataService';
 import { toast } from "sonner";
 
 interface UseActivityFormProps {
@@ -49,18 +49,49 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     allowHolidays
   });
 
+  // Update the prefix change handler to allow special characters
   const handlePrefixChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Allow more complex prefixes - don't strip out non-letter characters
-    const newPrefix = e.target.value;
+    // Allow more complex prefixes including dashes and underscores
+    const newPrefix = e.target.value.replace(/[^A-Za-z0-9\-_]/g, '');
     setActivityIdPrefix(newPrefix || 'A');
     updateActivityId(newPrefix || 'A');
   };
 
   const updateActivityId = (prefix: string) => {
-    const nextNumber = getNextNumber(data, prefix);
+    // Use the next available sequential number (fills gaps)
+    const nextNumber = getNextAvailableNumber(data, prefix);
+    
+    // Format the number with leading zeros, matching the pattern of existing IDs
+    let formattedNumber = String(nextNumber);
+    
+    // Detect the digit count pattern from existing IDs with the same prefix
+    const relevantIds = data
+      .map(item => parseActivityId(item.activityId))
+      .filter(parsed => parsed?.prefix === prefix);
+    
+    if (relevantIds.length > 0) {
+      // Find the most common digit count
+      const digitCounts: Record<number, number> = {};
+      relevantIds.forEach(parsed => {
+        if (parsed) {
+          const digitCount = String(parsed.number).length;
+          digitCounts[digitCount] = (digitCounts[digitCount] || 0) + 1;
+        }
+      });
+      
+      // Get the most common digit count
+      const mostCommonDigitCount = Object.entries(digitCounts)
+        .sort((a, b) => b[1] - a[1])[0]?.[0];
+      
+      if (mostCommonDigitCount) {
+        // Pad with leading zeros to match the most common digit count
+        formattedNumber = String(nextNumber).padStart(Number(mostCommonDigitCount), '0');
+      }
+    }
+    
     setNewActivity(prev => ({
       ...prev,
-      activityId: `${prefix}${nextNumber}`
+      activityId: `${prefix}${formattedNumber}`
     }));
   };
   
@@ -70,15 +101,19 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     if (data.length > 0) {
       const prefixCounts: Record<string, number> = {};
 
+      // Extract prefixes using our improved regex parser
       data.forEach((row) => {
-        const match = row.activityId.match(/^([A-Za-z]+)/); // extract leading letters
-        if (match) {
-          const prefix = match[1];
+        const parsed = parseActivityId(row.activityId);
+        if (parsed && parsed.prefix) {
+          const prefix = parsed.prefix;
           prefixCounts[prefix] = (prefixCounts[prefix] || 0) + 1;
         }
       });
 
-      const mostCommonPrefix = Object.entries(prefixCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+      // Sort by count to find most common prefix
+      const sortedPrefixes = Object.entries(prefixCounts).sort((a, b) => b[1] - a[1]);
+      const mostCommonPrefix = sortedPrefixes[0]?.[0];
+      
       if (mostCommonPrefix) {
         defaultPrefix = mostCommonPrefix;
       }
@@ -147,7 +182,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     handleProceedToForm,
     handleInputChange,
     handleSubmit,
-    getNextNumber: (prefix: string) => getNextNumber(data, prefix),
+    getNextNumber: (prefix: string) => getNextAvailableNumber(data, prefix),
     data  // Now we're explicitly passing data through
   };
 };
