@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { CSVRow } from '@/types/csv';
 import { useActivitySettings } from './useActivitySettings';
