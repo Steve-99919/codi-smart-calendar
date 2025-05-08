@@ -43,6 +43,7 @@ export const ActivityFormDialog = ({
   autoPrepDate,
   data
 }: ActivityFormDialogProps) => {
+  console.log("Rendering ActivityFormDialog with prefix:", activityIdPrefix);
   // Calculate the next ID to display based on the current prefix
   const nextId = `${activityIdPrefix}${getNextNumber(activityIdPrefix)}`;
   console.log("ActivityFormDialog - Current prefix:", activityIdPrefix);

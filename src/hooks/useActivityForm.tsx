@@ -53,6 +53,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
   const handlePrefixChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Allow more complex prefixes including dashes and underscores
     const newPrefix = e.target.value.replace(/[^A-Za-z0-9\-_]/g, '');
+    console.log("User changing prefix to:", newPrefix);
     setActivityIdPrefix(newPrefix || 'A');
     updateActivityId(newPrefix || 'A');
   };
@@ -60,6 +61,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
   const updateActivityId = (prefix: string) => {
     // Use the next available sequential number (fills gaps)
     const nextNumber = getNextAvailableNumber(data, prefix);
+    console.log("Found next number for prefix", prefix, ":", nextNumber);
     
     // Format the number with leading zeros, matching the pattern of existing IDs
     let formattedNumber = String(nextNumber);
@@ -89,6 +91,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
       }
     }
     
+    console.log("Setting new activity ID:", `${prefix}${formattedNumber}`);
     setNewActivity(prev => ({
       ...prev,
       activityId: `${prefix}${formattedNumber}`
@@ -97,19 +100,27 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
   
   const handleOpenAddActivity = () => {
     console.log("AddActivity Data", data);
+    console.log("Starting prefix detection...");
     let defaultPrefix = 'A';
 
-    if (data.length > 0) {
+    if (data && data.length > 0) {
       const prefixCounts: Record<string, number> = {};
 
       // Extract prefixes using our improved regex parser
       data.forEach((row) => {
+        if (!row.activityId) {
+          console.log("Skipping row with no activityId");
+          return;
+        }
+        
         console.log("Processing row:", row.activityId);
         const parsed = parseActivityId(row.activityId);
         if (parsed && parsed.prefix) {
           console.log("Parsed prefix:", parsed.prefix, "number:", parsed.number);
           const prefix = parsed.prefix;
           prefixCounts[prefix] = (prefixCounts[prefix] || 0) + 1;
+        } else {
+          console.log("Failed to parse prefix from:", row.activityId);
         }
       });
 
@@ -124,8 +135,8 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
       }
     }
 
-    setActivityIdPrefix(defaultPrefix);
     console.log("Setting activity ID prefix to:", defaultPrefix);
+    setActivityIdPrefix(defaultPrefix);
     updateActivityId(defaultPrefix);
     setShowPreferenceDialog(true);
   };
@@ -144,7 +155,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     
     try {
       if (!newActivity.activityId) {
-        const nextId = `${activityIdPrefix}${getNextNumber(data, activityIdPrefix)}`;
+        const nextId = `${activityIdPrefix}${getNextAvailableNumber(data, activityIdPrefix)}`;
         newActivity.activityId = nextId;
       }
       
