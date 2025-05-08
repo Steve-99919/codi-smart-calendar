@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CSVRow } from '@/types/csv';
 import { useActivitySettings } from './useActivitySettings';
 import { useActivityFormState } from './useActivityFormState';
@@ -48,6 +48,50 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     allowWeekends,
     allowHolidays
   });
+
+  // Detect the most common prefix whenever data changes
+  useEffect(() => {
+    console.log("Data changed, detecting most common prefix...", data?.length || 0, "rows");
+    
+    if (!data || data.length === 0) {
+      console.log("No data available for prefix detection");
+      return;
+    }
+    
+    const prefixCounts: Record<string, number> = {};
+    
+    // Extract prefixes using our regex parser
+    data.forEach((row) => {
+      if (!row.activityId) {
+        console.log("Skipping row with no activityId");
+        return;
+      }
+      
+      console.log("Processing row:", row.activityId);
+      const parsed = parseActivityId(row.activityId);
+      if (parsed && parsed.prefix) {
+        console.log("Parsed prefix:", parsed.prefix, "number:", parsed.number);
+        const prefix = parsed.prefix;
+        prefixCounts[prefix] = (prefixCounts[prefix] || 0) + 1;
+      } else {
+        console.log("Failed to parse prefix from:", row.activityId);
+      }
+    });
+    
+    console.log("Prefix counts:", prefixCounts);
+    
+    // Sort by count to find most common prefix
+    const sortedPrefixes = Object.entries(prefixCounts).sort((a, b) => b[1] - a[1]);
+    const mostCommonPrefix = sortedPrefixes[0]?.[0];
+    
+    if (mostCommonPrefix) {
+      console.log("Setting detected prefix to:", mostCommonPrefix);
+      setActivityIdPrefix(mostCommonPrefix);
+      updateActivityId(mostCommonPrefix);
+    } else {
+      console.log("No valid prefix detected, using default: A");
+    }
+  }, [data]);  // This effect runs whenever 'data' changes
 
   // Update the prefix change handler to allow special characters
   const handlePrefixChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,45 +143,8 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
   };
   
   const handleOpenAddActivity = () => {
-    console.log("AddActivity Data", data);
-    console.log("Starting prefix detection...");
-    let defaultPrefix = 'A';
-
-    if (data && data.length > 0) {
-      const prefixCounts: Record<string, number> = {};
-
-      // Extract prefixes using our improved regex parser
-      data.forEach((row) => {
-        if (!row.activityId) {
-          console.log("Skipping row with no activityId");
-          return;
-        }
-        
-        console.log("Processing row:", row.activityId);
-        const parsed = parseActivityId(row.activityId);
-        if (parsed && parsed.prefix) {
-          console.log("Parsed prefix:", parsed.prefix, "number:", parsed.number);
-          const prefix = parsed.prefix;
-          prefixCounts[prefix] = (prefixCounts[prefix] || 0) + 1;
-        } else {
-          console.log("Failed to parse prefix from:", row.activityId);
-        }
-      });
-
-      console.log("Prefix counts:", prefixCounts);
-      // Sort by count to find most common prefix
-      const sortedPrefixes = Object.entries(prefixCounts).sort((a, b) => b[1] - a[1]);
-      const mostCommonPrefix = sortedPrefixes[0]?.[0];
-      
-      if (mostCommonPrefix) {
-        console.log("Selected most common prefix:", mostCommonPrefix);
-        defaultPrefix = mostCommonPrefix;
-      }
-    }
-
-    console.log("Setting activity ID prefix to:", defaultPrefix);
-    setActivityIdPrefix(defaultPrefix);
-    updateActivityId(defaultPrefix);
+    console.log("Opening Add Activity dialog with current prefix:", activityIdPrefix);
+    // Prefix detection is now handled by the useEffect
     setShowPreferenceDialog(true);
   };
 
