@@ -11,6 +11,8 @@ interface AddActivityFormProps {
 }
 
 const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
+  console.log("AddActivityForm received data:", data.length, "rows");
+  
   const {
     showPreferenceDialog,
     setShowPreferenceDialog,

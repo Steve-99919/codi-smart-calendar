@@ -6,7 +6,9 @@ import { isDateBefore } from '@/utils/dateUtils';
 export const parseActivityId = (id: string) => {
   // This pattern will match any sequence of letters, numbers, dashes, and underscores
   // followed by a series of digits at the end
+  console.log("Parsing activity ID:", id);
   const match = id.match(/^([A-Za-z0-9\-_]+?)(\d+)$/);
+  console.log("Match result:", match ? { prefix: match[1], number: parseInt(match[2]) } : null);
   return match ? { prefix: match[1], number: parseInt(match[2]) } : null;
 };
 

@@ -45,6 +45,8 @@ export const ActivityFormDialog = ({
 }: ActivityFormDialogProps) => {
   // Calculate the next ID to display based on the current prefix
   const nextId = `${activityIdPrefix}${getNextNumber(activityIdPrefix)}`;
+  console.log("ActivityFormDialog - Current prefix:", activityIdPrefix);
+  console.log("ActivityFormDialog - Next ID:", nextId);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

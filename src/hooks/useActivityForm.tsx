@@ -96,6 +96,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
   };
   
   const handleOpenAddActivity = () => {
+    console.log("AddActivity Data", data);
     let defaultPrefix = 'A';
 
     if (data.length > 0) {
@@ -103,23 +104,28 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
 
       // Extract prefixes using our improved regex parser
       data.forEach((row) => {
+        console.log("Processing row:", row.activityId);
         const parsed = parseActivityId(row.activityId);
         if (parsed && parsed.prefix) {
+          console.log("Parsed prefix:", parsed.prefix, "number:", parsed.number);
           const prefix = parsed.prefix;
           prefixCounts[prefix] = (prefixCounts[prefix] || 0) + 1;
         }
       });
 
+      console.log("Prefix counts:", prefixCounts);
       // Sort by count to find most common prefix
       const sortedPrefixes = Object.entries(prefixCounts).sort((a, b) => b[1] - a[1]);
       const mostCommonPrefix = sortedPrefixes[0]?.[0];
       
       if (mostCommonPrefix) {
+        console.log("Selected most common prefix:", mostCommonPrefix);
         defaultPrefix = mostCommonPrefix;
       }
     }
 
     setActivityIdPrefix(defaultPrefix);
+    console.log("Setting activity ID prefix to:", defaultPrefix);
     updateActivityId(defaultPrefix);
     setShowPreferenceDialog(true);
   };
