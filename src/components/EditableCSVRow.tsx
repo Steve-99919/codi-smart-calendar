@@ -31,6 +31,7 @@ import {
 } from '@/utils/dateUtils';
 import { cn } from '@/lib/utils';
 import { toast } from "sonner";
+import { ConflictAlertDialog } from './activity/ConflictAlertDialog';
 
 interface EditableCSVRowProps {
   row: CSVRow;
@@ -53,6 +54,8 @@ const EditableCSVRow = ({ row, index, onSave, onCancel, data }: EditableCSVRowPr
   const [allowWeekends, setAllowWeekends] = useState<boolean>(false);
   const [allowHolidays, setAllowHolidays] = useState<boolean>(false);
   const [dialogSource, setDialogSource] = useState<'go' | 'prep'>('go');
+  const [showConflictDialog, setShowConflictDialog] = useState<boolean>(false);
+  const [conflictMessage, setConflictMessage] = useState<string>('');
 
   const handleInputChange = (field: keyof CSVRow, value: string) => {
     setEditedRow(prev => ({ ...prev, [field]: value }));
@@ -222,29 +225,38 @@ const EditableCSVRow = ({ row, index, onSave, onCancel, data }: EditableCSVRowPr
       }
       
       // Check for date conflicts excluding the current row
-      const hasConflict = findDateConflicts(
+      const hasPrepConflict = findDateConflicts(
         data.filter((_, i) => i !== index), 
         editedRow.prepDate,
         -1
-      ) || findDateConflicts(
+      );
+      
+      const hasGoConflict = findDateConflicts(
         data.filter((_, i) => i !== index), 
         editedRow.goDate,
         -1
       );
       
-      if (hasConflict) {
+      if (hasPrepConflict || hasGoConflict) {
         const prepConflicts = getConflictingEvents(data, editedRow.prepDate, index);
         const goConflicts = getConflictingEvents(data, editedRow.goDate, index);
         const conflictingActivities = [...new Set([...prepConflicts, ...goConflicts])];
         
-        toast.error(
-          `Date conflict with: ${conflictingActivities.join(', ')}`
-        );
+        // Instead of preventing save, show a conflict dialog that allows the user to continue
+        setConflictMessage(`Date conflict with: ${conflictingActivities.join(', ')}. Do you want to continue anyway?`);
+        setShowConflictDialog(true);
         return;
       }
     }
     
+    // If no conflicts or user confirmed despite conflicts, proceed with save
+    proceedWithSave();
+  };
+
+  // New function to proceed with save after conflict resolution
+  const proceedWithSave = () => {
     onSave(index, editedRow);
+    toast.success("Activity updated successfully");
   };
 
   // Helper function to get date issue information
@@ -487,6 +499,14 @@ const EditableCSVRow = ({ row, index, onSave, onCancel, data }: EditableCSVRowPr
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Conflict Alert Dialog - New component for handling conflicts */}
+      <ConflictAlertDialog
+        open={showConflictDialog}
+        onOpenChange={setShowConflictDialog}
+        message={conflictMessage}
+        onContinue={proceedWithSave}
+      />
     </>
   );
 };
