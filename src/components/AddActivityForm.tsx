@@ -4,7 +4,6 @@ import { CSVRow } from '@/types/csv';
 import { useActivityForm } from '@/hooks/useActivityForm';
 import { PreferenceDialog } from './activity/PreferenceDialog';
 import { ActivityFormDialog } from './activity/ActivityFormDialog';
-import { useEffect, useState } from 'react';
 
 interface AddActivityFormProps {
   data: CSVRow[];
@@ -13,7 +12,6 @@ interface AddActivityFormProps {
 
 const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
   console.log("AddActivityForm received data:", data.length, "rows");
-  const [isPrefixReady, setIsPrefixReady] = useState(false);
   
   const {
     showPreferenceDialog,
@@ -38,13 +36,6 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
     getNextNumber
   } = useActivityForm({ data, onAddActivity });
 
-  // Track when the prefix has been properly set
-  useEffect(() => {
-    if (activityIdPrefix && activityIdPrefix !== 'A' || data.length === 0) {
-      setIsPrefixReady(true);
-    }
-  }, [activityIdPrefix, data]);
-
   return (
     <>
       <Button onClick={handleOpenAddActivity}>Add Activity</Button>
@@ -59,26 +50,23 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
         onProceed={handleProceedToForm}
       />
 
-      {/* Only render the form when prefix is ready or explicitly showing the form */}
-      {(isPrefixReady || showAddForm) && (
-        <ActivityFormDialog 
-          key={activityIdPrefix} // Force re-render when prefix changes
-          open={showAddForm}
-          onOpenChange={setShowAddForm}
-          activityIdPrefix={activityIdPrefix}
-          selectedPrepDate={selectedPrepDate}
-          selectedGoDate={selectedGoDate}
-          newActivity={newActivity}
-          getNextNumber={(prefix) => getNextNumber(prefix)}
-          handlePrefixChange={handlePrefixChange}
-          handlePrepDateSelect={handlePrepDateSelect}
-          handleGoDateSelect={handleGoDateSelect}
-          handleInputChange={handleInputChange}
-          handleSubmit={handleSubmit}
-          autoPrepDate={true}
-          data={data}
-        />
-      )}
+      <ActivityFormDialog 
+        key={selectedGoDate?.toString()} // Force re-render when go date changes (for ID generation)
+        open={showAddForm}
+        onOpenChange={setShowAddForm}
+        activityIdPrefix={activityIdPrefix}
+        selectedPrepDate={selectedPrepDate}
+        selectedGoDate={selectedGoDate}
+        newActivity={newActivity}
+        getNextNumber={(prefix) => getNextNumber(prefix)}
+        handlePrefixChange={handlePrefixChange}
+        handlePrepDateSelect={handlePrepDateSelect}
+        handleGoDateSelect={handleGoDateSelect}
+        handleInputChange={handleInputChange}
+        handleSubmit={handleSubmit}
+        autoPrepDate={true}
+        data={data}
+      />
     </>
   );
 };

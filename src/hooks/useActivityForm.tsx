@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { CSVRow } from '@/types/csv';
 import { useActivitySettings } from './useActivitySettings';
@@ -5,14 +6,34 @@ import { useActivityFormState } from './useActivityFormState';
 import { isWeekend, isPublicHoliday } from '@/utils/dateUtils';
 import { getNextNumber, parseActivityId, getNextAvailableNumber } from '@/services/activityDataService';
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 interface UseActivityFormProps {
   data: CSVRow[];
   onAddActivity: (newActivity: CSVRow) => void;
 }
 
+// Helper function to generate abbreviated month
+const getMonthAbbreviation = (date: Date | undefined): string => {
+  if (!date) return '';
+  return format(date, 'MMM').toUpperCase();
+};
+
+// Helper function to get acronym from activity name
+const getActivityNameAcronym = (name: string): string => {
+  if (!name) return '';
+  
+  // Split by spaces and get first letter of each word
+  const words = name.trim().split(/\s+/);
+  const acronym = words.map(word => word.charAt(0).toUpperCase()).join('');
+  
+  // Return up to first 3 characters
+  return acronym.substring(0, 3);
+};
+
 export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) => {
-  const [activityIdPrefix, setActivityIdPrefix] = useState<string>('A');
+  // We don't need activityIdPrefix state anymore as we'll generate IDs dynamically
+  const [activityIdPrefix, setActivityIdPrefix] = useState<string>('');
   
   const { 
     showPreferenceDialog,
@@ -48,102 +69,55 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     allowHolidays
   });
 
-  // Detect the most common prefix whenever data changes
+  // Generate activity ID whenever the activity name or go date changes
   useEffect(() => {
-    console.log("Data changed, detecting most common prefix...", data?.length || 0, "rows");
-    
-    if (!data || data.length === 0) {
-      console.log("No data available for prefix detection");
-      return;
-    }
-    
-    const prefixCounts: Record<string, number> = {};
-    
-    // Extract prefixes using our regex parser
-    data.forEach((row) => {
-      if (!row.activityId) {
-        console.log("Skipping row with no activityId");
-        return;
-      }
-      
-      console.log("Processing row:", row.activityId);
-      const parsed = parseActivityId(row.activityId);
-      if (parsed && parsed.prefix) {
-        console.log("Parsed prefix:", parsed.prefix, "number:", parsed.number);
-        const prefix = parsed.prefix;
-        prefixCounts[prefix] = (prefixCounts[prefix] || 0) + 1;
-      } else {
-        console.log("Failed to parse prefix from:", row.activityId);
-      }
-    });
-    
-    console.log("Prefix counts:", prefixCounts);
-    
-    // Sort by count to find most common prefix
-    const sortedPrefixes = Object.entries(prefixCounts).sort((a, b) => b[1] - a[1]);
-    const mostCommonPrefix = sortedPrefixes[0]?.[0];
-    
-    if (mostCommonPrefix) {
-      console.log("Setting detected prefix to:", mostCommonPrefix);
-      setActivityIdPrefix(mostCommonPrefix);
-      updateActivityId(mostCommonPrefix);
-    } else {
-      console.log("No valid prefix detected, using default: A");
-    }
-  }, [data]);  // This effect runs whenever 'data' changes
+    updateActivityId();
+  }, [selectedGoDate, newActivity.activityName]);
 
-  // Update the prefix change handler to allow special characters
+  // This function is kept for compatibility but doesn't do anything since prefix is generated dynamically
   const handlePrefixChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Allow more complex prefixes including dashes and underscores
-    const newPrefix = e.target.value.replace(/[^A-Za-z0-9\-_]/g, '');
-    console.log("User changing prefix to:", newPrefix);
-    setActivityIdPrefix(newPrefix || 'A');
-    updateActivityId(newPrefix || 'A');
+    // This is now a no-op as we generate IDs based on name and date
+    console.log("Prefix changes are ignored as IDs are now auto-generated");
   };
 
-  const updateActivityId = (prefix: string) => {
-    // Use the next available sequential number (fills gaps)
-    const nextNumber = getNextAvailableNumber(data, prefix);
-    console.log("Found next number for prefix", prefix, ":", nextNumber);
-    
-    // Format the number with leading zeros, matching the pattern of existing IDs
-    let formattedNumber = String(nextNumber);
-    
-    // Detect the digit count pattern from existing IDs with the same prefix
-    const relevantIds = data
-      .map(item => parseActivityId(item.activityId))
-      .filter(parsed => parsed?.prefix === prefix);
-    
-    if (relevantIds.length > 0) {
-      // Find the most common digit count
-      const digitCounts: Record<number, number> = {};
-      relevantIds.forEach(parsed => {
-        if (parsed) {
-          const digitCount = String(parsed.number).length;
-          digitCounts[digitCount] = (digitCounts[digitCount] || 0) + 1;
-        }
-      });
-      
-      // Get the most common digit count
-      const mostCommonDigitCount = Object.entries(digitCounts)
-        .sort((a, b) => b[1] - a[1])[0]?.[0];
-      
-      if (mostCommonDigitCount) {
-        // Pad with leading zeros to match the most common digit count
-        formattedNumber = String(nextNumber).padStart(Number(mostCommonDigitCount), '0');
-      }
+  // Generate new activity ID based on activity name and go date
+  const updateActivityId = () => {
+    if (!selectedGoDate || !newActivity.activityName) {
+      return; // Not enough information to generate ID
     }
     
-    console.log("Setting new activity ID:", `${prefix}${formattedNumber}`);
-    setNewActivity(prev => ({
-      ...prev,
-      activityId: `${prefix}${formattedNumber}`
-    }));
+    try {
+      // Get acronym from activity name (first letters of each word)
+      const nameAcronym = getActivityNameAcronym(newActivity.activityName);
+      
+      // Get 3-letter month abbreviation
+      const monthAbbrev = getMonthAbbreviation(selectedGoDate);
+      
+      // Get day (2 digits)
+      const day = format(selectedGoDate, 'dd');
+      
+      // Get year (last 2 digits)
+      const year = format(selectedGoDate, 'yy');
+      
+      // Construct the new ID: [name acronym]-[month]-[day]-[year]
+      const newId = `${nameAcronym}-${monthAbbrev}${day}-${year}`;
+      console.log("Generated activity ID:", newId);
+      
+      // Update the activity ID
+      setNewActivity(prev => ({
+        ...prev,
+        activityId: newId
+      }));
+      
+      // Update prefix state for compatibility
+      setActivityIdPrefix(nameAcronym);
+    } catch (error) {
+      console.error("Error generating activity ID:", error);
+    }
   };
-  
+
   const handleOpenAddActivity = () => {
-    console.log("Opening Add Activity dialog with current prefix:", activityIdPrefix);
-    // Prefix detection is now handled by the useEffect
+    console.log("Opening Add Activity dialog");
     setShowPreferenceDialog(true);
   };
 
@@ -160,9 +134,15 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     setIsProcessingActivity(true);
     
     try {
-      if (!newActivity.activityId) {
-        const nextId = `${activityIdPrefix}${getNextAvailableNumber(data, activityIdPrefix)}`;
-        newActivity.activityId = nextId;
+      // Make sure we have an activity ID (should already be set, but just in case)
+      if (!newActivity.activityId && selectedGoDate && newActivity.activityName) {
+        const nameAcronym = getActivityNameAcronym(newActivity.activityName);
+        const monthAbbrev = getMonthAbbreviation(selectedGoDate);
+        const day = format(selectedGoDate, 'dd');
+        const year = format(selectedGoDate, 'yy');
+        const generatedId = `${nameAcronym}-${monthAbbrev}${day}-${year}`;
+        
+        newActivity.activityId = generatedId;
       }
       
       const activityToAdd = {
@@ -185,6 +165,11 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     }
   };
 
+  // This is kept for compatibility but will return a placeholder value since we don't use sequence numbers anymore
+  const getNextNumber = (prefix: string) => {
+    return 1; // Placeholder, we don't use sequence numbers anymore
+  };
+
   return {
     showPreferenceDialog,
     setShowPreferenceDialog,
@@ -205,7 +190,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     handleProceedToForm,
     handleInputChange,
     handleSubmit,
-    getNextNumber: (prefix: string) => getNextAvailableNumber(data, prefix),
-    data  // Now we're explicitly passing data through
+    getNextNumber,
+    data
   };
 };

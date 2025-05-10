@@ -43,12 +43,6 @@ export const ActivityFormDialog = ({
   autoPrepDate,
   data
 }: ActivityFormDialogProps) => {
-  console.log("Rendering ActivityFormDialog with prefix:", activityIdPrefix);
-  // Calculate the next ID to display based on the current prefix
-  const nextId = `${activityIdPrefix}${getNextNumber(activityIdPrefix)}`;
-  console.log("ActivityFormDialog - Current prefix:", activityIdPrefix);
-  console.log("ActivityFormDialog - Next ID:", nextId);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
@@ -62,26 +56,6 @@ export const ActivityFormDialog = ({
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="grid grid-cols-1 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="activityIdPrefix">Activity ID Prefix</Label>
-              <Input
-                id="activityIdPrefix"
-                value={activityIdPrefix}
-                onChange={handlePrefixChange}
-                maxLength={20} // Allowing longer prefixes for complex IDs
-                className="w-64" // Wider input for longer prefixes
-              />
-              <div className="text-sm text-gray-500">
-                Next ID will be: {nextId}
-              </div>
-              
-              <input 
-                type="hidden" 
-                name="activityId" 
-                value={nextId} 
-              />
-            </div>
-            
-            <div className="space-y-2">
               <Label htmlFor="activityName">Activity Name*</Label>
               <Input
                 id="activityName"
@@ -90,26 +64,9 @@ export const ActivityFormDialog = ({
                 onChange={handleInputChange}
                 required
               />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Input
-                id="description"
-                name="description"
-                value={newActivity.description}
-                onChange={handleInputChange}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="strategy">Strategy</Label>
-              <Input
-                id="strategy"
-                name="strategy"
-                value={newActivity.strategy}
-                onChange={handleInputChange}
-              />
+              <p className="text-xs text-muted-foreground">
+                Enter the full activity name. This will be used to generate the activity ID.
+              </p>
             </div>
             
             <div className="space-y-2">
@@ -137,6 +94,22 @@ export const ActivityFormDialog = ({
                   />
                 </PopoverContent>
               </Popover>
+              <p className="text-xs text-muted-foreground">
+                This date will be used as part of the activity ID.
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="activityId">Generated Activity ID</Label>
+              <Input
+                id="activityId"
+                value={newActivity.activityId}
+                readOnly
+                className="bg-gray-100"
+              />
+              <p className="text-xs text-muted-foreground">
+                ID format: [Name Initials]-[Month][Day]-[Year]
+              </p>
             </div>
             
             <div className="space-y-2">
@@ -156,6 +129,26 @@ export const ActivityFormDialog = ({
                   <span className="text-orange-500"> Warning: Selected Go date would result in a weekend or holiday prep date.</span>
                 ) : ""}
               </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Input
+                id="description"
+                name="description"
+                value={newActivity.description}
+                onChange={handleInputChange}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="strategy">Strategy</Label>
+              <Input
+                id="strategy"
+                name="strategy"
+                value={newActivity.strategy}
+                onChange={handleInputChange}
+              />
             </div>
           </div>
           
