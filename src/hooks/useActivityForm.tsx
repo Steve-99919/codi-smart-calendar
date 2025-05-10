@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { CSVRow } from '@/types/csv';
 import { useActivitySettings } from './useActivitySettings';
@@ -87,7 +88,6 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     if (mostCommonPrefix) {
       console.log("Setting detected prefix to:", mostCommonPrefix);
       setActivityIdPrefix(mostCommonPrefix);
-      updateActivityId(mostCommonPrefix);
     } else {
       console.log("No valid prefix detected, using default: A");
     }
@@ -95,6 +95,8 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
 
   // Generate Activity ID based on activity name and go date
   const generateActivityId = () => {
+    console.log("Generating activity ID with name:", newActivity.activityName, "and date:", selectedGoDate);
+    
     if (!newActivity.activityName || !selectedGoDate) {
       toast.error("Please provide both activity name and go date");
       return;
@@ -120,6 +122,8 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
       ...prev,
       activityId: generatedId
     }));
+    
+    toast.success("Activity ID generated successfully");
   };
 
   const handlePrefixChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -127,49 +131,10 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     const newPrefix = e.target.value.replace(/[^A-Za-z0-9\-_]/g, '');
     console.log("User changing prefix to:", newPrefix);
     setActivityIdPrefix(newPrefix || 'A');
-    updateActivityId(newPrefix || 'A');
-  };
-
-  const updateActivityId = (prefix: string) => {
-    // Use the next available sequential number (fills gaps)
-    const nextNumber = getNextAvailableNumber(data, prefix);
-    console.log("Found next number for prefix", prefix, ":", nextNumber);
-    
-    // Format the number with leading zeros, matching the pattern of existing IDs
-    let formattedNumber = String(nextNumber);
-    
-    // Detect the digit count pattern from existing IDs with the same prefix
-    const relevantIds = data
-      .map(item => parseActivityId(item.activityId))
-      .filter(parsed => parsed?.prefix === prefix);
-    
-    if (relevantIds.length > 0) {
-      // Find the most common digit count
-      const digitCounts: Record<number, number> = {};
-      relevantIds.forEach(parsed => {
-        if (parsed) {
-          const digitCount = String(parsed.number).length;
-          digitCounts[digitCount] = (digitCounts[digitCount] || 0) + 1;
-        }
-      });
-      
-      // Get the most common digit count
-      const mostCommonDigitCount = Object.entries(digitCounts)
-        .sort((a, b) => b[1] - a[1])[0]?.[0];
-      
-      if (mostCommonDigitCount) {
-        // Pad with leading zeros to match the most common digit count
-        formattedNumber = String(nextNumber).padStart(Number(mostCommonDigitCount), '0');
-      }
-    }
-    
-    // Now we keep track of prefix but we don't set the activityId automatically
-    // The user will click "Generate ID" to create the ID based on name and go date
   };
   
   const handleOpenAddActivity = () => {
     console.log("Opening Add Activity dialog");
-    // Don't set any activityId yet, leave it empty
     setShowPreferenceDialog(true);
   };
 
@@ -187,13 +152,9 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     
     try {
       if (!newActivity.activityId) {
-        // If no ID has been generated, generate one
-        generateActivityId();
-        if (!newActivity.activityId) {
-          toast.error("Please generate an activity ID before submitting");
-          setIsProcessingActivity(false);
-          return;
-        }
+        toast.error("Please generate an activity ID before submitting");
+        setIsProcessingActivity(false);
+        return;
       }
       
       const activityToAdd = {
@@ -236,7 +197,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     handleProceedToForm,
     handleInputChange,
     handleSubmit,
-    generateActivityId,
+    generateActivityId, // Explicitly exposing the function
     getNextNumber: (prefix: string) => getNextAvailableNumber(data, prefix),
     data  // Now we're explicitly passing data through
   };

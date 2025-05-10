@@ -46,7 +46,7 @@ export const ActivityFormDialog = ({
   onGenerateId
 }: ActivityFormDialogProps) => {
   // Check if both activity name and go date are set
-  const canGenerateId = newActivity.activityName && newActivity.goDate;
+  const canGenerateId = Boolean(newActivity.activityName && selectedGoDate);
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
