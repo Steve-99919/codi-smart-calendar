@@ -12,6 +12,23 @@ interface UseActivityFormStateProps {
   allowHolidays: boolean;
 }
 
+// Helper function to generate abbreviated month
+const getMonthAbbreviation = (date: Date): string => {
+  return format(date, 'MMM').toUpperCase();
+};
+
+// Helper function to get acronym from activity name
+const getActivityNameAcronym = (name: string): string => {
+  if (!name) return '';
+  
+  // Split by spaces and get first letter of each word
+  const words = name.trim().split(/\s+/);
+  const acronym = words.map(word => word.charAt(0).toUpperCase()).join('');
+  
+  // Return up to first 3 characters
+  return acronym.substring(0, 3);
+};
+
 export const useActivityFormState = ({
   data,
   activityIdPrefix,
@@ -115,6 +132,44 @@ export const useActivityFormState = ({
       [name]: value
     }));
   };
+  
+  // Generate ID manually when requested
+  const generateActivityId = (): boolean => {
+    if (!selectedGoDate || !newActivity.activityName) {
+      toast.error("Please enter an activity name and select a go date before generating an ID");
+      return false;
+    }
+    
+    try {
+      // Get acronym from activity name (first letters of each word)
+      const nameAcronym = getActivityNameAcronym(newActivity.activityName);
+      
+      // Get 3-letter month abbreviation
+      const monthAbbrev = getMonthAbbreviation(selectedGoDate);
+      
+      // Get day (2 digits)
+      const day = format(selectedGoDate, 'dd');
+      
+      // Get year (last 2 digits)
+      const year = format(selectedGoDate, 'yy');
+      
+      // Construct the new ID: [name acronym]-[month]-[day]-[year]
+      const newId = `${nameAcronym}-${monthAbbrev}${day}-${year}`;
+      console.log("Generated activity ID:", newId);
+      
+      // Update the activity ID
+      setNewActivity(prev => ({
+        ...prev,
+        activityId: newId
+      }));
+      
+      return true;
+    } catch (error) {
+      console.error("Error generating activity ID:", error);
+      toast.error("Error generating activity ID");
+      return false;
+    }
+  };
 
   const validateForm = () => {
     if (!newActivity.activityName || 
@@ -125,6 +180,12 @@ export const useActivityFormState = ({
 
     if (!isValidDateFormat(newActivity.prepDate) || !isValidDateFormat(newActivity.goDate)) {
       toast.error("Please enter dates in dd/mm/yyyy format");
+      return false;
+    }
+    
+    // Validate activity ID
+    if (!newActivity.activityId) {
+      toast.error("Please generate an activity ID before submitting");
       return false;
     }
 
@@ -171,6 +232,7 @@ export const useActivityFormState = ({
     handlePrepDateSelect,
     handleGoDateSelect,
     handleInputChange,
+    generateActivityId,
     validateForm,
     resetForm,
     setNewActivity

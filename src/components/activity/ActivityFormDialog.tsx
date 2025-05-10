@@ -24,6 +24,7 @@ interface ActivityFormDialogProps {
   handleSubmit: (e: React.FormEvent) => void;
   autoPrepDate: boolean;
   data: CSVRow[];
+  generateActivityId?: () => boolean;
 }
 
 export const ActivityFormDialog = ({
@@ -39,10 +40,11 @@ export const ActivityFormDialog = ({
   handleInputChange,
   handleSubmit,
   autoPrepDate,
-  data
+  data,
+  generateActivityId
 }: ActivityFormDialogProps) => {
-  // Determine whether to show a placeholder or the actual ID
-  const hasRequiredInfoForId = selectedGoDate && newActivity.activityName;
+  // Determine whether required fields are filled for ID generation
+  const canGenerateId = !!selectedGoDate && !!newActivity.activityName;
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -101,16 +103,23 @@ export const ActivityFormDialog = ({
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="activityId">Generated Activity ID</Label>
+              <div className="flex justify-between items-center">
+                <Label htmlFor="activityId">Generated Activity ID</Label>
+                <Button 
+                  type="button" 
+                  size="sm" 
+                  onClick={generateActivityId}
+                  disabled={!canGenerateId}
+                >
+                  Generate ID
+                </Button>
+              </div>
               <Input
                 id="activityId"
                 value={newActivity.activityId}
                 readOnly
-                className={cn(
-                  "bg-gray-100",
-                  !hasRequiredInfoForId && "text-muted-foreground"
-                )}
-                placeholder={!hasRequiredInfoForId ? "Will be generated after name and date are entered" : ""}
+                className="bg-gray-100"
+                placeholder="Click 'Generate ID' after entering name and date"
               />
               <p className="text-xs text-muted-foreground">
                 ID format: [Name Initials]-[Month][Day]-[Year]
