@@ -197,8 +197,8 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     handleProceedToForm,
     handleInputChange,
     handleSubmit,
-    generateActivityId, // Explicitly exposing the function
+    generateActivityId, // Ensure generateActivityId is explicitly returned
     getNextNumber: (prefix: string) => getNextAvailableNumber(data, prefix),
-    data  // Now we're explicitly passing data through
+    data
   };
 };
