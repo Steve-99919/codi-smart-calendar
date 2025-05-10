@@ -17,7 +17,6 @@ interface ActivityFormDialogProps {
   selectedPrepDate?: Date;
   selectedGoDate?: Date;
   newActivity: CSVRow;
-  getNextNumber: (prefix: string) => number;
   handlePrefixChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handlePrepDateSelect: (date: Date | undefined) => void;
   handleGoDateSelect: (date: Date | undefined) => void;
@@ -34,7 +33,6 @@ export const ActivityFormDialog = ({
   selectedPrepDate,
   selectedGoDate,
   newActivity,
-  getNextNumber,
   handlePrefixChange,
   handlePrepDateSelect,
   handleGoDateSelect,

@@ -32,8 +32,7 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
     handleOpenAddActivity,
     handleProceedToForm,
     handleInputChange,
-    handleSubmit,
-    getNextNumber
+    handleSubmit
   } = useActivityForm({ data, onAddActivity });
 
   return (
@@ -51,14 +50,13 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
       />
 
       <ActivityFormDialog 
-        key={selectedGoDate?.toString()} // Force re-render when go date changes (for ID generation)
+        key={`${selectedGoDate?.toString()}-${newActivity.activityName}`} // Force re-render when go date or name changes
         open={showAddForm}
         onOpenChange={setShowAddForm}
         activityIdPrefix={activityIdPrefix}
         selectedPrepDate={selectedPrepDate}
         selectedGoDate={selectedGoDate}
         newActivity={newActivity}
-        getNextNumber={(prefix) => getNextNumber(prefix)}
         handlePrefixChange={handlePrefixChange}
         handlePrepDateSelect={handlePrepDateSelect}
         handleGoDateSelect={handleGoDateSelect}

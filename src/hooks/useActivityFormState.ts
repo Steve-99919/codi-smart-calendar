@@ -4,7 +4,6 @@ import { CSVRow } from '@/types/csv';
 import { format, subDays } from "date-fns";
 import { toast } from "sonner";
 import { isWeekend, isPublicHoliday, isValidDateFormat, getValidPrepDate } from '@/utils/dateUtils';
-import { getNextNumber } from '@/services/activityDataService';
 
 interface UseActivityFormStateProps {
   data: CSVRow[];
@@ -23,7 +22,7 @@ export const useActivityFormState = ({
   const [selectedGoDate, setSelectedGoDate] = useState<Date>();
   const [isProcessingActivity, setIsProcessingActivity] = useState(false);
   const [newActivity, setNewActivity] = useState<CSVRow>({
-    activityId: `${activityIdPrefix}${getNextNumber(data, activityIdPrefix)}`,
+    activityId: "",
     activityName: "",
     description: "",
     strategy: "",
@@ -111,10 +110,10 @@ export const useActivityFormState = ({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setNewActivity({
-      ...newActivity,
+    setNewActivity(prev => ({
+      ...prev,
       [name]: value
-    });
+    }));
   };
 
   const validateForm = () => {
@@ -150,7 +149,7 @@ export const useActivityFormState = ({
 
   const resetForm = () => {
     setNewActivity({
-      activityId: `${activityIdPrefix}${getNextNumber(data, activityIdPrefix)}`,
+      activityId: "",
       activityName: "",
       description: "",
       strategy: "",
@@ -173,6 +172,7 @@ export const useActivityFormState = ({
     handleGoDateSelect,
     handleInputChange,
     validateForm,
-    resetForm
+    resetForm,
+    setNewActivity
   };
 };

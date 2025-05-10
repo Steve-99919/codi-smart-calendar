@@ -4,7 +4,6 @@ import { CSVRow } from '@/types/csv';
 import { useActivitySettings } from './useActivitySettings';
 import { useActivityFormState } from './useActivityFormState';
 import { isWeekend, isPublicHoliday } from '@/utils/dateUtils';
-import { getNextNumber, parseActivityId, getNextAvailableNumber } from '@/services/activityDataService';
 import { toast } from "sonner";
 import { format } from "date-fns";
 
