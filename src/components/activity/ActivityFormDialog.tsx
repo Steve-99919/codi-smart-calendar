@@ -25,6 +25,7 @@ interface ActivityFormDialogProps {
   handleSubmit: (e: React.FormEvent) => void;
   autoPrepDate: boolean;
   data: CSVRow[];
+  onGenerateId: () => void;
 }
 
 export const ActivityFormDialog = ({
@@ -41,14 +42,12 @@ export const ActivityFormDialog = ({
   handleInputChange,
   handleSubmit,
   autoPrepDate,
-  data
+  data,
+  onGenerateId
 }: ActivityFormDialogProps) => {
-  console.log("Rendering ActivityFormDialog with prefix:", activityIdPrefix);
-  // Calculate the next ID to display based on the current prefix
-  const nextId = `${activityIdPrefix}${getNextNumber(activityIdPrefix)}`;
-  console.log("ActivityFormDialog - Current prefix:", activityIdPrefix);
-  console.log("ActivityFormDialog - Next ID:", nextId);
-
+  // Check if both activity name and go date are set
+  const canGenerateId = newActivity.activityName && newActivity.goDate;
+  
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
@@ -61,26 +60,6 @@ export const ActivityFormDialog = ({
         
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="grid grid-cols-1 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="activityIdPrefix">Activity ID Prefix</Label>
-              <Input
-                id="activityIdPrefix"
-                value={activityIdPrefix}
-                onChange={handlePrefixChange}
-                maxLength={20} // Allowing longer prefixes for complex IDs
-                className="w-64" // Wider input for longer prefixes
-              />
-              <div className="text-sm text-gray-500">
-                Next ID will be: {nextId}
-              </div>
-              
-              <input 
-                type="hidden" 
-                name="activityId" 
-                value={nextId} 
-              />
-            </div>
-            
             <div className="space-y-2">
               <Label htmlFor="activityName">Activity Name*</Label>
               <Input
@@ -155,6 +134,31 @@ export const ActivityFormDialog = ({
                 {!newActivity.prepDate && selectedGoDate ? (
                   <span className="text-orange-500"> Warning: Selected Go date would result in a weekend or holiday prep date.</span>
                 ) : ""}
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="activityId">Activity ID</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="activityId"
+                  name="activityId"
+                  value={newActivity.activityId || ""}
+                  disabled
+                  className="bg-gray-100"
+                  placeholder="Fill activity name and go date to generate ID"
+                />
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  disabled={!canGenerateId}
+                  onClick={onGenerateId}
+                >
+                  Generate ID
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Activity ID will be generated based on activity name and go date.
               </p>
             </div>
           </div>

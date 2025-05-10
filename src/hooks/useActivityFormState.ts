@@ -23,7 +23,7 @@ export const useActivityFormState = ({
   const [selectedGoDate, setSelectedGoDate] = useState<Date>();
   const [isProcessingActivity, setIsProcessingActivity] = useState(false);
   const [newActivity, setNewActivity] = useState<CSVRow>({
-    activityId: `${activityIdPrefix}${getNextNumber(data, activityIdPrefix)}`,
+    activityId: "", // Start with empty activityId
     activityName: "",
     description: "",
     strategy: "",
@@ -111,16 +111,21 @@ export const useActivityFormState = ({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setNewActivity({
-      ...newActivity,
+    setNewActivity(prev => ({
+      ...prev,
       [name]: value
-    });
+    }));
   };
 
   const validateForm = () => {
     if (!newActivity.activityName || 
         !newActivity.prepDate || !newActivity.goDate) {
       toast.error("Please fill in all required fields");
+      return false;
+    }
+
+    if (!newActivity.activityId) {
+      toast.error("Please generate an activity ID before submitting");
       return false;
     }
 
@@ -150,7 +155,7 @@ export const useActivityFormState = ({
 
   const resetForm = () => {
     setNewActivity({
-      activityId: `${activityIdPrefix}${getNextNumber(data, activityIdPrefix)}`,
+      activityId: "", // Reset to empty
       activityName: "",
       description: "",
       strategy: "",
@@ -173,6 +178,7 @@ export const useActivityFormState = ({
     handleGoDateSelect,
     handleInputChange,
     validateForm,
-    resetForm
+    resetForm,
+    setNewActivity
   };
 };

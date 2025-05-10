@@ -5,6 +5,7 @@ import { useActivityFormState } from './useActivityFormState';
 import { isWeekend, isPublicHoliday } from '@/utils/dateUtils';
 import { getNextNumber, parseActivityId, getNextAvailableNumber } from '@/services/activityDataService';
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 interface UseActivityFormProps {
   data: CSVRow[];
@@ -92,7 +93,35 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     }
   }, [data]);  // This effect runs whenever 'data' changes
 
-  // Update the prefix change handler to allow special characters
+  // Generate Activity ID based on activity name and go date
+  const generateActivityId = () => {
+    if (!newActivity.activityName || !selectedGoDate) {
+      toast.error("Please provide both activity name and go date");
+      return;
+    }
+
+    // Get initials from activity name (first letter of each word)
+    const initials = newActivity.activityName
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase())
+      .join('');
+
+    // Format the date for the ID
+    const month = format(selectedGoDate, 'MMM').toUpperCase();
+    const day = format(selectedGoDate, 'dd');
+    const year = format(selectedGoDate, 'yy');
+
+    // Construct the ID in format [Initials]-[Month][Day]-[Year]
+    const generatedId = `${initials}-${month}${day}-${year}`;
+    
+    console.log("Generated activity ID:", generatedId);
+    
+    setNewActivity(prev => ({
+      ...prev,
+      activityId: generatedId
+    }));
+  };
+
   const handlePrefixChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Allow more complex prefixes including dashes and underscores
     const newPrefix = e.target.value.replace(/[^A-Za-z0-9\-_]/g, '');
@@ -134,16 +163,13 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
       }
     }
     
-    console.log("Setting new activity ID:", `${prefix}${formattedNumber}`);
-    setNewActivity(prev => ({
-      ...prev,
-      activityId: `${prefix}${formattedNumber}`
-    }));
+    // Now we keep track of prefix but we don't set the activityId automatically
+    // The user will click "Generate ID" to create the ID based on name and go date
   };
   
   const handleOpenAddActivity = () => {
-    console.log("Opening Add Activity dialog with current prefix:", activityIdPrefix);
-    // Prefix detection is now handled by the useEffect
+    console.log("Opening Add Activity dialog");
+    // Don't set any activityId yet, leave it empty
     setShowPreferenceDialog(true);
   };
 
@@ -161,8 +187,13 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     
     try {
       if (!newActivity.activityId) {
-        const nextId = `${activityIdPrefix}${getNextAvailableNumber(data, activityIdPrefix)}`;
-        newActivity.activityId = nextId;
+        // If no ID has been generated, generate one
+        generateActivityId();
+        if (!newActivity.activityId) {
+          toast.error("Please generate an activity ID before submitting");
+          setIsProcessingActivity(false);
+          return;
+        }
       }
       
       const activityToAdd = {
@@ -205,6 +236,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     handleProceedToForm,
     handleInputChange,
     handleSubmit,
+    generateActivityId,
     getNextNumber: (prefix: string) => getNextAvailableNumber(data, prefix),
     data  // Now we're explicitly passing data through
   };

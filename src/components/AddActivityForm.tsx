@@ -35,6 +35,7 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
     handleProceedToForm,
     handleInputChange,
     handleSubmit,
+    generateActivityId,
     getNextNumber
   } = useActivityForm({ data, onAddActivity });
 
@@ -77,6 +78,7 @@ const AddActivityForm = ({ data, onAddActivity }: AddActivityFormProps) => {
           handleSubmit={handleSubmit}
           autoPrepDate={true}
           data={data}
+          onGenerateId={generateActivityId}
         />
       )}
     </>
