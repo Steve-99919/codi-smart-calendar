@@ -51,8 +51,6 @@ const EditableCSVRow = ({ row, index, onSave, onCancel, data }: EditableCSVRowPr
   const [showPrepDatePreferenceDialog, setShowPrepDatePreferenceDialog] = useState<boolean>(false);
   const [selectedGoDate, setSelectedGoDate] = useState<Date | null>(null);
   const [calculatedPrepDate, setCalculatedPrepDate] = useState<Date | null>(null);
-  const [allowWeekends, setAllowWeekends] = useState<boolean>(false);
-  const [allowHolidays, setAllowHolidays] = useState<boolean>(false);
   const [dialogSource, setDialogSource] = useState<'go' | 'prep'>('go');
   const [showConflictDialog, setShowConflictDialog] = useState<boolean>(false);
   const [conflictMessage, setConflictMessage] = useState<string>('');
@@ -98,11 +96,11 @@ const EditableCSVRow = ({ row, index, onSave, onCancel, data }: EditableCSVRowPr
     }
     
     // If it's not a weekend or holiday, just update the date
-    applyGoDateSelection(date, false, false);
+    applyGoDateSelection(date);
   };
   
   // Apply the go date selection and calculate prep date
-  const applyGoDateSelection = (goDate: Date, allowWeekends: boolean, allowHolidays: boolean) => {
+  const applyGoDateSelection = (goDate: Date) => {
     // Set the go date
     const formattedGoDate = formatDateString(goDate);
     
@@ -114,9 +112,8 @@ const EditableCSVRow = ({ row, index, onSave, onCancel, data }: EditableCSVRowPr
     const isPrepOnWeekend = isWeekend(formattedPrepDate);
     const isPrepOnHoliday = isPublicHoliday(formattedPrepDate);
     
-    // If prep date falls on weekend/holiday and preferences don't allow it,
-    // show the prep date preference dialog
-    if ((isPrepOnWeekend && !allowWeekends) || (isPrepOnHoliday && !allowHolidays)) {
+    // If prep date falls on weekend/holiday, show the prep date preference dialog
+    if (isPrepOnWeekend || isPrepOnHoliday) {
       setCalculatedPrepDate(prepDate);
       setDialogSource('prep');
       setShowPrepDatePreferenceDialog(true);
@@ -149,25 +146,14 @@ const EditableCSVRow = ({ row, index, onSave, onCancel, data }: EditableCSVRowPr
   };
 
   // Apply prep date preferences
-  const applyPrepDatePreferences = (allowWeekendsForPrep: boolean, allowHolidaysForPrep: boolean) => {
+  const applyPrepDatePreferences = () => {
     if (calculatedPrepDate) {
-      if (allowWeekendsForPrep && allowHolidaysForPrep) {
-        // Use the calculated prep date as is
-        const formattedPrepDate = formatDateString(calculatedPrepDate);
-        setEditedRow(prev => ({
-          ...prev,
-          prepDate: formattedPrepDate
-        }));
-      } else {
-        // Find a valid prep date based on preferences (going backwards from calculated date)
-        const validPrepDate = getValidPrepDate(calculatedPrepDate, allowWeekendsForPrep, allowHolidaysForPrep);
-        const formattedValidPrepDate = formatDateString(validPrepDate);
-        
-        setEditedRow(prev => ({
-          ...prev,
-          prepDate: formattedValidPrepDate
-        }));
-      }
+      // Use the calculated prep date as is
+      const formattedPrepDate = formatDateString(calculatedPrepDate);
+      setEditedRow(prev => ({
+        ...prev,
+        prepDate: formattedPrepDate
+      }));
       
       setDateErrors(prev => ({
         ...prev,
@@ -180,11 +166,11 @@ const EditableCSVRow = ({ row, index, onSave, onCancel, data }: EditableCSVRowPr
   const handleConfirmDatePreferences = () => {
     if (dialogSource === 'go' && selectedGoDate) {
       setShowDatePreferenceDialog(false);
-      applyGoDateSelection(selectedGoDate, allowWeekends, allowHolidays);
+      applyGoDateSelection(selectedGoDate);
       setSelectedGoDate(null);
     } else if (dialogSource === 'prep') {
       setShowPrepDatePreferenceDialog(false);
-      applyPrepDatePreferences(allowWeekends, allowHolidays);
+      applyPrepDatePreferences();
       setCalculatedPrepDate(null);
     }
   };
@@ -205,10 +191,6 @@ const EditableCSVRow = ({ row, index, onSave, onCancel, data }: EditableCSVRowPr
         goDate: row.goDate
       }));
     }
-    
-    // Reset preferences to defaults
-    setAllowWeekends(false);
-    setAllowHolidays(false);
   };
   
   const handleSave = () => {
@@ -410,7 +392,7 @@ const EditableCSVRow = ({ row, index, onSave, onCancel, data }: EditableCSVRowPr
         </td>
       </tr>
 
-      {/* Go Date Preference Dialog */}
+      {/* Go Date Preference Dialog - Simplified without checkboxes */}
       <Dialog open={showDatePreferenceDialog} onOpenChange={setShowDatePreferenceDialog}>
         <DialogContent>
           <DialogHeader>
@@ -420,29 +402,6 @@ const EditableCSVRow = ({ row, index, onSave, onCancel, data }: EditableCSVRowPr
               Would you like to allow this?
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="py-4 space-y-4">
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="allowWeekends"
-                checked={allowWeekends}
-                onChange={(e) => setAllowWeekends(e.target.checked)}
-                className="h-4 w-4"
-              />
-              <label htmlFor="allowWeekends">Allow posting on weekends</label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="allowHolidays"
-                checked={allowHolidays}
-                onChange={(e) => setAllowHolidays(e.target.checked)}
-                className="h-4 w-4"
-              />
-              <label htmlFor="allowHolidays">Allow posting on public holidays</label>
-            </div>
-          </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={handleCancelDatePreferences}>
@@ -455,7 +414,7 @@ const EditableCSVRow = ({ row, index, onSave, onCancel, data }: EditableCSVRowPr
         </DialogContent>
       </Dialog>
 
-      {/* Prep Date Preference Dialog */}
+      {/* Prep Date Preference Dialog - Simplified without checkboxes */}
       <Dialog open={showPrepDatePreferenceDialog} onOpenChange={setShowPrepDatePreferenceDialog}>
         <DialogContent>
           <DialogHeader>
@@ -465,29 +424,6 @@ const EditableCSVRow = ({ row, index, onSave, onCancel, data }: EditableCSVRowPr
               Would you like to allow this?
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="py-4 space-y-4">
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="allowWeekendsPrepDate"
-                checked={allowWeekends}
-                onChange={(e) => setAllowWeekends(e.target.checked)}
-                className="h-4 w-4"
-              />
-              <label htmlFor="allowWeekendsPrepDate">Allow prep date on weekends</label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="allowHolidaysPrepDate"
-                checked={allowHolidays}
-                onChange={(e) => setAllowHolidays(e.target.checked)}
-                className="h-4 w-4"
-              />
-              <label htmlFor="allowHolidaysPrepDate">Allow prep date on public holidays</label>
-            </div>
-          </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={handleCancelDatePreferences}>
