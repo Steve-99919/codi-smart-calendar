@@ -57,7 +57,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     setIsProcessingActivity,
     handlePrepDateSelect,
     handleGoDateSelect,
-    handleInputChange,
+    handleInputChange: baseHandleInputChange,
     validateForm,
     resetForm,
     setNewActivity
@@ -77,6 +77,16 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
   const handlePrefixChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // This is now a no-op as we generate IDs based on name and date
     console.log("Prefix changes are ignored as IDs are now auto-generated");
+  };
+
+  // Handle input changes and trigger ID updates
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    baseHandleInputChange(e);
+    
+    // If we're changing the activity name, make sure to update the ID
+    if (e.target.name === 'activityName' && selectedGoDate) {
+      // We'll let the useEffect handle this
+    }
   };
 
   // Generate new activity ID based on activity name and go date
@@ -117,6 +127,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
 
   const handleOpenAddActivity = () => {
     console.log("Opening Add Activity dialog");
+    resetForm(); // Ensure we start fresh
     setShowPreferenceDialog(true);
   };
 
@@ -164,11 +175,6 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     }
   };
 
-  // This is kept for compatibility but will return a placeholder value since we don't use sequence numbers anymore
-  const getNextNumber = (prefix: string) => {
-    return 1; // Placeholder, we don't use sequence numbers anymore
-  };
-
   return {
     showPreferenceDialog,
     setShowPreferenceDialog,
@@ -188,8 +194,6 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     handleOpenAddActivity,
     handleProceedToForm,
     handleInputChange,
-    handleSubmit,
-    getNextNumber,
-    data
+    handleSubmit
   };
 };

@@ -41,6 +41,9 @@ export const ActivityFormDialog = ({
   autoPrepDate,
   data
 }: ActivityFormDialogProps) => {
+  // Determine whether to show a placeholder or the actual ID
+  const hasRequiredInfoForId = selectedGoDate && newActivity.activityName;
+  
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
@@ -103,7 +106,11 @@ export const ActivityFormDialog = ({
                 id="activityId"
                 value={newActivity.activityId}
                 readOnly
-                className="bg-gray-100"
+                className={cn(
+                  "bg-gray-100",
+                  !hasRequiredInfoForId && "text-muted-foreground"
+                )}
+                placeholder={!hasRequiredInfoForId ? "Will be generated after name and date are entered" : ""}
               />
               <p className="text-xs text-muted-foreground">
                 ID format: [Name Initials]-[Month][Day]-[Year]

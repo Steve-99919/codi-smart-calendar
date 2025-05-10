@@ -22,7 +22,7 @@ export const useActivityFormState = ({
   const [selectedGoDate, setSelectedGoDate] = useState<Date>();
   const [isProcessingActivity, setIsProcessingActivity] = useState(false);
   const [newActivity, setNewActivity] = useState<CSVRow>({
-    activityId: "",
+    activityId: "", // Start with empty activityId
     activityName: "",
     description: "",
     strategy: "",
@@ -149,7 +149,7 @@ export const useActivityFormState = ({
 
   const resetForm = () => {
     setNewActivity({
-      activityId: "",
+      activityId: "", // Reset to empty string
       activityName: "",
       description: "",
       strategy: "",
