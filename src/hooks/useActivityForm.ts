@@ -48,6 +48,39 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     return maxNumber + 1;
   };
 
+  // Generate Activity ID based on activity name and go date
+  const generateActivityId = () => {
+    console.log("Generating activity ID with name:", newActivity.activityName, "and date:", selectedGoDate);
+    
+    if (!newActivity.activityName || !selectedGoDate) {
+      toast.error("Please provide both activity name and go date");
+      return;
+    }
+
+    // Get initials from activity name (first letter of each word)
+    const initials = newActivity.activityName
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase())
+      .join('');
+
+    // Format the date for the ID
+    const month = format(selectedGoDate, 'MMM').toUpperCase();
+    const day = format(selectedGoDate, 'dd');
+    const year = format(selectedGoDate, 'yy');
+
+    // Construct the ID in format [Initials]-[Month][Day]-[Year]
+    const generatedId = `${initials}-${month}${day}-${year}`;
+    
+    console.log("Generated activity ID:", generatedId);
+    
+    setNewActivity(prev => ({
+      ...prev,
+      activityId: generatedId
+    }));
+    
+    toast.success("Activity ID generated successfully");
+  };
+
   const handlePrefixChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newPrefix = e.target.value.replace(/[^A-Za-z]/g, '');
     setActivityIdPrefix(newPrefix || 'A'); // Ensure we always have at least one character
@@ -164,11 +197,8 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     }
 
     if (!newActivity.activityId) {
-      const nextId = `${activityIdPrefix}${getNextNumber(activityIdPrefix)}`;
-      setNewActivity(prev => ({
-        ...prev,
-        activityId: nextId
-      }));
+      toast.error("Please generate an activity ID before submitting");
+      return false;
     }
 
     if (!isValidDateFormat(newActivity.prepDate) || !isValidDateFormat(newActivity.goDate)) {
@@ -202,8 +232,9 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     
     try {
       if (!newActivity.activityId) {
-        const nextId = `${activityIdPrefix}${getNextNumber(activityIdPrefix)}`;
-        newActivity.activityId = nextId;
+        toast.error("Please generate an activity ID before submitting");
+        setIsProcessingActivity(false);
+        return;
       }
       
       const activityToAdd = {
@@ -214,6 +245,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
       
       onAddActivity(activityToAdd);
       resetForm();
+      setShowAddForm(false);
       
       setTimeout(() => {
         setIsProcessingActivity(false);
@@ -269,6 +301,7 @@ export const useActivityForm = ({ data, onAddActivity }: UseActivityFormProps) =
     handleProceedToForm,
     handleInputChange,
     handleSubmit,
+    generateActivityId, // Added generateActivityId to the returned object
     getNextNumber
   };
 };
