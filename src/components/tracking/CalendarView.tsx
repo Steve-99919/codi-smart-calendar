@@ -1,9 +1,11 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
+import { format, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
 import { ActivityWithStatus } from '@/types/event';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { CalendarIcon } from 'lucide-react';
 
 interface CalendarViewProps {
   activities: ActivityWithStatus[];
@@ -11,6 +13,11 @@ interface CalendarViewProps {
 }
 
 const CalendarView = ({ activities, onClose }: CalendarViewProps) => {
+  const [viewMode, setViewMode] = useState<'today' | 'week'>('today');
+  const today = new Date();
+  const startOfCurrentWeek = startOfWeek(today, { weekStartsOn: 1 }); // Monday
+  const endOfCurrentWeek = endOfWeek(today, { weekStartsOn: 1 }); // Sunday
+
   // Group activities by date for display in calendar
   const dateHasActivities = (date: Date): boolean => {
     const dateStr = format(date, 'yyyy-MM-dd');
@@ -38,25 +45,61 @@ const CalendarView = ({ activities, onClose }: CalendarViewProps) => {
     });
   };
 
+  // Get activities for the current view (today or this week)
+  const getActivitiesForCurrentView = (): ActivityWithStatus[] => {
+    if (viewMode === 'today') {
+      return getActivitiesForDate(new Date());
+    } else {
+      return activities.filter(activity => {
+        const prepDate = new Date(activity.prep_date);
+        const goDate = new Date(activity.go_date);
+        
+        return (
+          isWithinInterval(prepDate, { start: startOfCurrentWeek, end: endOfCurrentWeek }) ||
+          isWithinInterval(goDate, { start: startOfCurrentWeek, end: endOfCurrentWeek })
+        );
+      });
+    }
+  };
+
   // Custom renderer for dates with activities
   const renderDay = (day: Date) => {
     const activitiesOnDay = getActivitiesForDate(day);
     
     if (activitiesOnDay.length === 0) {
-      return <div className="w-full h-full">{day.getDate()}</div>;
+      return <div className="w-full h-full p-1">{day.getDate()}</div>;
     }
 
     return (
-      <div className="w-full h-full relative">
-        {day.getDate()}
-        <div className="absolute bottom-0 right-0">
-          <Badge variant="secondary" className="text-xs">
-            {activitiesOnDay.length}
-          </Badge>
+      <div className="w-full h-full p-1 bg-blue-50 rounded-md">
+        <div className="font-semibold">{day.getDate()}</div>
+        <div className="overflow-y-auto max-h-20 text-xs">
+          {activitiesOnDay.map((activity, index) => {
+            const isPrepDate = format(new Date(activity.prep_date), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
+            const isGoDate = format(new Date(activity.go_date), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
+            
+            return (
+              <div 
+                key={`${activity.id}-${index}`} 
+                className={`mb-1 p-1 rounded ${
+                  isPrepDate ? 'bg-blue-100' : isGoDate ? 'bg-green-100' : ''
+                }`}
+              >
+                <div className="truncate">
+                  {isPrepDate && <span className="text-blue-700 font-medium">PREP: </span>}
+                  {isGoDate && <span className="text-green-700 font-medium">GO: </span>}
+                  {activity.activity_name}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
   };
+
+  const currentViewActivities = getActivitiesForCurrentView();
+  const weekRangeText = `${format(startOfCurrentWeek, 'MMM dd')} - ${format(endOfCurrentWeek, 'MMM dd')}`;
 
   return (
     <div className="p-4 bg-white shadow rounded-lg">
@@ -69,6 +112,28 @@ const CalendarView = ({ activities, onClose }: CalendarViewProps) => {
           Close
         </button>
       </div>
+      
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex space-x-2">
+          <Button
+            variant={viewMode === 'today' ? 'default' : 'outline'}
+            onClick={() => setViewMode('today')}
+            className="flex items-center gap-2"
+          >
+            <CalendarIcon className="h-4 w-4" />
+            Today
+          </Button>
+          <Button
+            variant={viewMode === 'week' ? 'default' : 'outline'}
+            onClick={() => setViewMode('week')}
+            className="flex items-center gap-2"
+          >
+            <CalendarIcon className="h-4 w-4" />
+            This Week ({weekRangeText})
+          </Button>
+        </div>
+      </div>
+      
       <div className="mt-2">
         <Calendar
           mode="single"
@@ -80,7 +145,10 @@ const CalendarView = ({ activities, onClose }: CalendarViewProps) => {
           }}
           components={{
             Day: ({ date, ...props }) => (
-              <div {...props}>
+              <div 
+                {...props}
+                className="h-32 w-full border border-gray-200"
+              >
                 {date ? renderDay(date) : null}
               </div>
             ),
@@ -89,10 +157,13 @@ const CalendarView = ({ activities, onClose }: CalendarViewProps) => {
           selected={new Date()}
         />
       </div>
+      
       <div className="mt-4 p-4 border rounded-md max-h-64 overflow-auto">
-        <h3 className="font-medium mb-2">Activities Today</h3>
+        <h3 className="font-medium mb-2">
+          {viewMode === 'today' ? 'Activities Today' : `Activities This Week (${weekRangeText})`}
+        </h3>
         <ul className="divide-y">
-          {getActivitiesForDate(new Date()).map((activity) => (
+          {currentViewActivities.map((activity) => (
             <li key={activity.id} className="py-2">
               <div className="flex items-center">
                 <div className={`w-2 h-2 rounded-full mr-2 ${
@@ -101,17 +172,20 @@ const CalendarView = ({ activities, onClose }: CalendarViewProps) => {
                 }`} />
                 <div>
                   <p className="font-medium">{activity.activity_name}</p>
-                  <p className="text-sm text-gray-600">
-                    {new Date(activity.prep_date).toLocaleDateString() === format(new Date(), 'MM/dd/yyyy') 
-                      ? 'PREP Date' 
-                      : 'GO Date'}
-                  </p>
+                  <div className="flex flex-col text-sm">
+                    <span className="text-gray-600">
+                      PREP: {new Date(activity.prep_date).toLocaleDateString()}
+                    </span>
+                    <span className="text-gray-600">
+                      GO: {new Date(activity.go_date).toLocaleDateString()}
+                    </span>
+                  </div>
                 </div>
               </div>
             </li>
           ))}
-          {getActivitiesForDate(new Date()).length === 0 && (
-            <li className="py-2 text-gray-500">No activities today</li>
+          {currentViewActivities.length === 0 && (
+            <li className="py-2 text-gray-500">No activities {viewMode === 'today' ? 'today' : 'this week'}</li>
           )}
         </ul>
       </div>
