@@ -1,11 +1,10 @@
 
 import React, { useState } from 'react';
 import { Calendar } from '@/components/ui/calendar';
-import { format, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
+import { format, startOfWeek, endOfWeek, isWithinInterval, isSameDay } from 'date-fns';
 import { ActivityWithStatus } from '@/types/event';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, CircleDot } from 'lucide-react';
 
 interface CalendarViewProps {
   activities: ActivityWithStatus[];
@@ -14,41 +13,41 @@ interface CalendarViewProps {
 
 const CalendarView = ({ activities, onClose }: CalendarViewProps) => {
   const [viewMode, setViewMode] = useState<'today' | 'week'>('today');
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const today = new Date();
   const startOfCurrentWeek = startOfWeek(today, { weekStartsOn: 1 }); // Monday
   const endOfCurrentWeek = endOfWeek(today, { weekStartsOn: 1 }); // Sunday
 
-  // Group activities by date for display in calendar
-  const dateHasActivities = (date: Date): boolean => {
-    const dateStr = format(date, 'yyyy-MM-dd');
-    return activities.some(activity => {
+  // Function to count prep and go dates for a specific day
+  const getDateActivityCounts = (date: Date) => {
+    let prepCount = 0;
+    let goCount = 0;
+    
+    activities.forEach(activity => {
       const prepDate = new Date(activity.prep_date);
       const goDate = new Date(activity.go_date);
       
-      return (
-        format(prepDate, 'yyyy-MM-dd') === dateStr ||
-        format(goDate, 'yyyy-MM-dd') === dateStr
-      );
+      if (isSameDay(prepDate, date)) prepCount++;
+      if (isSameDay(goDate, date)) goCount++;
     });
+    
+    return { prepCount, goCount };
   };
 
+  // Get activities for a specific date
   const getActivitiesForDate = (date: Date): ActivityWithStatus[] => {
-    const dateStr = format(date, 'yyyy-MM-dd');
     return activities.filter(activity => {
       const prepDate = new Date(activity.prep_date);
       const goDate = new Date(activity.go_date);
       
-      return (
-        format(prepDate, 'yyyy-MM-dd') === dateStr ||
-        format(goDate, 'yyyy-MM-dd') === dateStr
-      );
+      return isSameDay(prepDate, date) || isSameDay(goDate, date);
     });
   };
 
   // Get activities for the current view (today or this week)
   const getActivitiesForCurrentView = (): ActivityWithStatus[] => {
     if (viewMode === 'today') {
-      return getActivitiesForDate(new Date());
+      return getActivitiesForDate(today);
     } else {
       return activities.filter(activity => {
         const prepDate = new Date(activity.prep_date);
@@ -62,41 +61,53 @@ const CalendarView = ({ activities, onClose }: CalendarViewProps) => {
     }
   };
 
-  // Custom renderer for dates with activities
+  // Custom day component that shows dots for prep and go dates
   const renderDay = (day: Date) => {
-    const activitiesOnDay = getActivitiesForDate(day);
+    const { prepCount, goCount } = getDateActivityCounts(day);
+    const hasActivities = prepCount > 0 || goCount > 0;
     
-    if (activitiesOnDay.length === 0) {
-      return <div className="w-full h-full p-1">{day.getDate()}</div>;
-    }
-
     return (
-      <div className="w-full h-full p-1 bg-blue-50 rounded-md">
-        <div className="font-semibold">{day.getDate()}</div>
-        <div className="overflow-y-auto max-h-20 text-xs">
-          {activitiesOnDay.map((activity, index) => {
-            const isPrepDate = format(new Date(activity.prep_date), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
-            const isGoDate = format(new Date(activity.go_date), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
-            
-            return (
-              <div 
-                key={`${activity.id}-${index}`} 
-                className={`mb-1 p-1 rounded ${
-                  isPrepDate ? 'bg-blue-100' : isGoDate ? 'bg-green-100' : ''
-                }`}
-              >
-                <div className="truncate">
-                  {isPrepDate && <span className="text-blue-700 font-medium">PREP: </span>}
-                  {isGoDate && <span className="text-green-700 font-medium">GO: </span>}
-                  {activity.activity_name}
+      <div 
+        className={`w-full h-full p-2 rounded-md transition-colors cursor-pointer ${
+          hasActivities ? 'hover:bg-gray-100' : ''
+        } ${selectedDate && isSameDay(selectedDate, day) ? 'bg-blue-50' : ''}`}
+        onClick={() => {
+          if (hasActivities) {
+            setSelectedDate(day);
+          }
+        }}
+      >
+        <div className="flex justify-between items-center">
+          <span className="font-medium">{day.getDate()}</span>
+          {hasActivities && (
+            <div className="flex space-x-1">
+              {prepCount > 0 && (
+                <div className="flex items-center">
+                  <CircleDot className="h-3 w-3 text-orange-500" />
+                  {prepCount > 1 && (
+                    <span className="text-xs text-orange-500 ml-0.5">{prepCount}</span>
+                  )}
                 </div>
-              </div>
-            );
-          })}
+              )}
+              {goCount > 0 && (
+                <div className="flex items-center">
+                  <CircleDot className="h-3 w-3 text-green-500" />
+                  {goCount > 1 && (
+                    <span className="text-xs text-green-500 ml-0.5">{goCount}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
   };
+
+  // Get activities for selected date
+  const selectedDateActivities = selectedDate 
+    ? getActivitiesForDate(selectedDate) 
+    : [];
 
   const currentViewActivities = getActivitiesForCurrentView();
   const weekRangeText = `${format(startOfCurrentWeek, 'MMM dd')} - ${format(endOfCurrentWeek, 'MMM dd')}`;
@@ -133,61 +144,102 @@ const CalendarView = ({ activities, onClose }: CalendarViewProps) => {
           </Button>
         </div>
       </div>
-      
-      <div className="mt-2">
-        <Calendar
-          mode="single"
-          modifiers={{
-            hasActivity: (date) => dateHasActivities(date),
-          }}
-          modifiersStyles={{
-            hasActivity: { backgroundColor: '#f0f9ff', fontWeight: 'bold' },
-          }}
-          components={{
-            Day: ({ date, ...props }) => (
-              <div 
-                {...props}
-                className="h-32 w-full border border-gray-200"
-              >
-                {date ? renderDay(date) : null}
-              </div>
-            ),
-          }}
-          className="rounded-md border shadow p-3"
-          selected={new Date()}
-        />
-      </div>
-      
-      <div className="mt-4 p-4 border rounded-md max-h-64 overflow-auto">
-        <h3 className="font-medium mb-2">
-          {viewMode === 'today' ? 'Activities Today' : `Activities This Week (${weekRangeText})`}
-        </h3>
-        <ul className="divide-y">
-          {currentViewActivities.map((activity) => (
-            <li key={activity.id} className="py-2">
-              <div className="flex items-center">
-                <div className={`w-2 h-2 rounded-full mr-2 ${
-                  activity.status?.status === 'completed' ? 'bg-green-500' :
-                  activity.status?.status === 'delayed' ? 'bg-amber-500' : 'bg-blue-500'
-                }`} />
-                <div>
-                  <p className="font-medium">{activity.activity_name}</p>
-                  <div className="flex flex-col text-sm">
-                    <span className="text-gray-600">
-                      PREP: {new Date(activity.prep_date).toLocaleDateString()}
-                    </span>
-                    <span className="text-gray-600">
-                      GO: {new Date(activity.go_date).toLocaleDateString()}
-                    </span>
-                  </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="md:col-span-3">
+          <div className="flex items-center mb-2 space-x-2">
+            <div className="flex items-center">
+              <CircleDot className="h-3 w-3 text-orange-500" />
+              <span className="text-sm ml-1">Prep Date</span>
+            </div>
+            <div className="flex items-center">
+              <CircleDot className="h-3 w-3 text-green-500" />
+              <span className="text-sm ml-1">Go Date</span>
+            </div>
+          </div>
+          
+          <Calendar
+            mode="single"
+            components={{
+              Day: ({ date, ...props }) => (
+                <div 
+                  {...props}
+                  className="h-20 w-full border border-gray-200"
+                >
+                  {date ? renderDay(date) : null}
                 </div>
-              </div>
-            </li>
-          ))}
-          {currentViewActivities.length === 0 && (
-            <li className="py-2 text-gray-500">No activities {viewMode === 'today' ? 'today' : 'this week'}</li>
+              ),
+            }}
+            selected={selectedDate}
+            className="rounded-md border shadow p-3"
+            onSelect={(date) => {
+              if (date) {
+                const { prepCount, goCount } = getDateActivityCounts(date);
+                if (prepCount > 0 || goCount > 0) {
+                  setSelectedDate(date);
+                }
+              }
+            }}
+          />
+        </div>
+
+        <div className="md:col-span-2 p-4 border rounded-md overflow-auto">
+          {selectedDate ? (
+            <>
+              <h3 className="font-medium mb-2">
+                Activities for {format(selectedDate, 'MMMM d, yyyy')}
+              </h3>
+              <ul className="divide-y">
+                {selectedDateActivities.map((activity) => {
+                  const prepDate = new Date(activity.prep_date);
+                  const goDate = new Date(activity.go_date);
+                  const isPrepDate = isSameDay(prepDate, selectedDate);
+                  const isGoDate = isSameDay(goDate, selectedDate);
+                  
+                  return (
+                    <li key={activity.id} className="py-2">
+                      <div className="flex items-center">
+                        <div className={`w-2 h-2 rounded-full mr-2 ${
+                          activity.status?.status === 'completed' ? 'bg-green-500' :
+                          activity.status?.status === 'delayed' ? 'bg-amber-500' : 'bg-blue-500'
+                        }`} />
+                        <div>
+                          <p className="font-medium">{activity.activity_name}</p>
+                          <div className="flex flex-col text-sm">
+                            {isPrepDate && (
+                              <span className="text-orange-600 font-medium">
+                                PREP: {format(prepDate, 'MMM dd, yyyy')}
+                              </span>
+                            )}
+                            {isGoDate && (
+                              <span className="text-green-600 font-medium">
+                                GO: {format(goDate, 'MMM dd, yyyy')}
+                              </span>
+                            )}
+                            <span className="text-gray-600">
+                              Status: {activity.status?.status || 'Pending'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <CalendarIcon className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+              <p>Select a date with activities to view details</p>
+            </div>
           )}
-        </ul>
+          
+          {selectedDate && selectedDateActivities.length === 0 && (
+            <div className="text-center py-4 text-gray-500">
+              <p>No activities for this date</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
