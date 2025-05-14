@@ -4,7 +4,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { format, startOfWeek, endOfWeek, isWithinInterval, isSameDay } from 'date-fns';
 import { ActivityWithStatus } from '@/types/event';
 import { Button } from '@/components/ui/button';
-import { CalendarIcon, CircleDot } from 'lucide-react';
+import { CalendarIcon } from 'lucide-react';
 
 interface CalendarViewProps {
   activities: ActivityWithStatus[];
@@ -18,20 +18,13 @@ const CalendarView = ({ activities, onClose }: CalendarViewProps) => {
   const startOfCurrentWeek = startOfWeek(today, { weekStartsOn: 1 }); // Monday
   const endOfCurrentWeek = endOfWeek(today, { weekStartsOn: 1 }); // Sunday
 
-  // Function to count prep and go dates for a specific day
-  const getDateActivityCounts = (date: Date) => {
-    let prepCount = 0;
-    let goCount = 0;
-    
-    activities.forEach(activity => {
+  // Check if a date has any activities
+  const hasActivitiesOnDate = (date: Date): boolean => {
+    return activities.some(activity => {
       const prepDate = new Date(activity.prep_date);
       const goDate = new Date(activity.go_date);
-      
-      if (isSameDay(prepDate, date)) prepCount++;
-      if (isSameDay(goDate, date)) goCount++;
+      return isSameDay(prepDate, date) || isSameDay(goDate, date);
     });
-    
-    return { prepCount, goCount };
   };
 
   // Get activities for a specific date
@@ -39,7 +32,6 @@ const CalendarView = ({ activities, onClose }: CalendarViewProps) => {
     return activities.filter(activity => {
       const prepDate = new Date(activity.prep_date);
       const goDate = new Date(activity.go_date);
-      
       return isSameDay(prepDate, date) || isSameDay(goDate, date);
     });
   };
@@ -61,50 +53,7 @@ const CalendarView = ({ activities, onClose }: CalendarViewProps) => {
     }
   };
 
-  // Custom day component that shows dots for prep and go dates
-  const renderDay = (day: Date) => {
-    const { prepCount, goCount } = getDateActivityCounts(day);
-    const hasActivities = prepCount > 0 || goCount > 0;
-    
-    return (
-      <div 
-        className={`w-full h-full p-2 rounded-md transition-colors cursor-pointer ${
-          hasActivities ? 'hover:bg-gray-100' : ''
-        } ${selectedDate && isSameDay(selectedDate, day) ? 'bg-blue-50' : ''}`}
-        onClick={() => {
-          if (hasActivities) {
-            setSelectedDate(day);
-          }
-        }}
-      >
-        <div className="flex justify-between items-center">
-          <span className="font-medium">{day.getDate()}</span>
-          {hasActivities && (
-            <div className="flex space-x-1">
-              {prepCount > 0 && (
-                <div className="flex items-center">
-                  <CircleDot className="h-3 w-3 text-orange-500" />
-                  {prepCount > 1 && (
-                    <span className="text-xs text-orange-500 ml-0.5">{prepCount}</span>
-                  )}
-                </div>
-              )}
-              {goCount > 0 && (
-                <div className="flex items-center">
-                  <CircleDot className="h-3 w-3 text-green-500" />
-                  {goCount > 1 && (
-                    <span className="text-xs text-green-500 ml-0.5">{goCount}</span>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // Get activities for selected date
+  // Get selected date activities
   const selectedDateActivities = selectedDate 
     ? getActivitiesForDate(selectedDate) 
     : [];
@@ -145,45 +94,31 @@ const CalendarView = ({ activities, onClose }: CalendarViewProps) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div className="md:col-span-3">
-          <div className="flex items-center mb-2 space-x-2">
-            <div className="flex items-center">
-              <CircleDot className="h-3 w-3 text-orange-500" />
-              <span className="text-sm ml-1">Prep Date</span>
-            </div>
-            <div className="flex items-center">
-              <CircleDot className="h-3 w-3 text-green-500" />
-              <span className="text-sm ml-1">Go Date</span>
-            </div>
-          </div>
-          
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="md:col-span-2">
           <Calendar
             mode="single"
-            components={{
-              Day: ({ date, ...props }) => (
-                <div 
-                  {...props}
-                  className="h-20 w-full border border-gray-200"
-                >
-                  {date ? renderDay(date) : null}
-                </div>
-              ),
-            }}
             selected={selectedDate}
-            className="rounded-md border shadow p-3"
+            className="rounded-md border shadow"
+            modifiers={{
+              highlighted: date => hasActivitiesOnDate(date)
+            }}
+            modifiersStyles={{
+              highlighted: { 
+                backgroundColor: '#f0f9ff',
+                fontWeight: 'bold',
+                borderRadius: '50%'
+              }
+            }}
             onSelect={(date) => {
-              if (date) {
-                const { prepCount, goCount } = getDateActivityCounts(date);
-                if (prepCount > 0 || goCount > 0) {
-                  setSelectedDate(date);
-                }
+              if (date && hasActivitiesOnDate(date)) {
+                setSelectedDate(date);
               }
             }}
           />
         </div>
 
-        <div className="md:col-span-2 p-4 border rounded-md overflow-auto">
+        <div className="md:col-span-1 p-4 border rounded-md overflow-auto max-h-[400px]">
           {selectedDate ? (
             <>
               <h3 className="font-medium mb-2">
