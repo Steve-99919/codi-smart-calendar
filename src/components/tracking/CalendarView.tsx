@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { format, startOfWeek, endOfWeek, isWithinInterval, isSameDay } from 'date-fns';
 import { ActivityWithStatus } from '@/types/event';
@@ -14,6 +13,8 @@ interface CalendarViewProps {
 const CalendarView = ({ activities, onClose }: CalendarViewProps) => {
   const [viewMode, setViewMode] = useState<'today' | 'week'>('today');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [displayedActivities, setDisplayedActivities] = useState<ActivityWithStatus[]>([]);
+  
   const today = new Date();
   const startOfCurrentWeek = startOfWeek(today, { weekStartsOn: 1 }); // Monday
   const endOfCurrentWeek = endOfWeek(today, { weekStartsOn: 1 }); // Sunday
@@ -36,29 +37,42 @@ const CalendarView = ({ activities, onClose }: CalendarViewProps) => {
     });
   };
 
-  // Get activities for the current view (today or this week)
-  const getActivitiesForCurrentView = (): ActivityWithStatus[] => {
+  // Get activities for the current week
+  const getActivitiesForCurrentWeek = (): ActivityWithStatus[] => {
+    return activities.filter(activity => {
+      const prepDate = new Date(activity.prep_date);
+      const goDate = new Date(activity.go_date);
+      
+      return (
+        isWithinInterval(prepDate, { start: startOfCurrentWeek, end: endOfCurrentWeek }) ||
+        isWithinInterval(goDate, { start: startOfCurrentWeek, end: endOfCurrentWeek })
+      );
+    });
+  };
+
+  // Update displayed activities based on view mode and selected date
+  useEffect(() => {
     if (viewMode === 'today') {
-      return getActivitiesForDate(today);
+      setDisplayedActivities(getActivitiesForDate(today));
+    } else if (viewMode === 'week') {
+      setDisplayedActivities(getActivitiesForCurrentWeek());
+    } else if (selectedDate) {
+      setDisplayedActivities(getActivitiesForDate(selectedDate));
+    }
+  }, [viewMode, selectedDate, activities]);
+
+  // Handle view mode changes
+  const handleViewModeChange = (mode: 'today' | 'week') => {
+    setViewMode(mode);
+    if (mode === 'today') {
+      setSelectedDate(today);
     } else {
-      return activities.filter(activity => {
-        const prepDate = new Date(activity.prep_date);
-        const goDate = new Date(activity.go_date);
-        
-        return (
-          isWithinInterval(prepDate, { start: startOfCurrentWeek, end: endOfCurrentWeek }) ||
-          isWithinInterval(goDate, { start: startOfCurrentWeek, end: endOfCurrentWeek })
-        );
-      });
+      // For week view, we'll show all week activities but not highlight a specific date
+      // Keep the selected date but update the displayed activities
+      setSelectedDate(undefined);
     }
   };
 
-  // Get selected date activities
-  const selectedDateActivities = selectedDate 
-    ? getActivitiesForDate(selectedDate) 
-    : [];
-
-  const currentViewActivities = getActivitiesForCurrentView();
   const weekRangeText = `${format(startOfCurrentWeek, 'MMM dd')} - ${format(endOfCurrentWeek, 'MMM dd')}`;
 
   return (
@@ -77,7 +91,7 @@ const CalendarView = ({ activities, onClose }: CalendarViewProps) => {
         <div className="flex space-x-2">
           <Button
             variant={viewMode === 'today' ? 'default' : 'outline'}
-            onClick={() => setViewMode('today')}
+            onClick={() => handleViewModeChange('today')}
             className="flex items-center gap-2"
           >
             <CalendarIcon className="h-4 w-4" />
@@ -85,7 +99,7 @@ const CalendarView = ({ activities, onClose }: CalendarViewProps) => {
           </Button>
           <Button
             variant={viewMode === 'week' ? 'default' : 'outline'}
-            onClick={() => setViewMode('week')}
+            onClick={() => handleViewModeChange('week')}
             className="flex items-center gap-2"
           >
             <CalendarIcon className="h-4 w-4" />
@@ -111,25 +125,31 @@ const CalendarView = ({ activities, onClose }: CalendarViewProps) => {
               }
             }}
             onSelect={(date) => {
-              if (date && hasActivitiesOnDate(date)) {
+              if (date) {
                 setSelectedDate(date);
+                setViewMode('custom'); // Switch to custom view mode when a date is selected
               }
             }}
           />
         </div>
 
         <div className="md:col-span-1 p-4 border rounded-md overflow-auto max-h-[400px]">
-          {selectedDate ? (
+          {displayedActivities.length > 0 ? (
             <>
               <h3 className="font-medium mb-2">
-                Activities for {format(selectedDate, 'MMMM d, yyyy')}
+                {viewMode === 'today' 
+                  ? `Activities for Today (${format(today, 'MMMM d, yyyy')})`
+                  : viewMode === 'week'
+                  ? `Activities for This Week (${weekRangeText})`
+                  : selectedDate 
+                  ? `Activities for ${format(selectedDate, 'MMMM d, yyyy')}`
+                  : 'Activities'
+                }
               </h3>
               <ul className="divide-y">
-                {selectedDateActivities.map((activity) => {
+                {displayedActivities.map((activity) => {
                   const prepDate = new Date(activity.prep_date);
                   const goDate = new Date(activity.go_date);
-                  const isPrepDate = isSameDay(prepDate, selectedDate);
-                  const isGoDate = isSameDay(goDate, selectedDate);
                   
                   return (
                     <li key={activity.id} className="py-2">
@@ -141,16 +161,12 @@ const CalendarView = ({ activities, onClose }: CalendarViewProps) => {
                         <div>
                           <p className="font-medium">{activity.activity_name}</p>
                           <div className="flex flex-col text-sm">
-                            {isPrepDate && (
-                              <span className="text-orange-600 font-medium">
-                                PREP: {format(prepDate, 'MMM dd, yyyy')}
-                              </span>
-                            )}
-                            {isGoDate && (
-                              <span className="text-green-600 font-medium">
-                                GO: {format(goDate, 'MMM dd, yyyy')}
-                              </span>
-                            )}
+                            <span className="text-orange-600 font-medium">
+                              PREP: {format(prepDate, 'MMM dd, yyyy')}
+                            </span>
+                            <span className="text-green-600 font-medium">
+                              GO: {format(goDate, 'MMM dd, yyyy')}
+                            </span>
                             <span className="text-gray-600">
                               Status: {activity.status?.status || 'Pending'}
                             </span>
@@ -163,15 +179,8 @@ const CalendarView = ({ activities, onClose }: CalendarViewProps) => {
               </ul>
             </>
           ) : (
-            <div className="text-center py-8 text-gray-500">
-              <CalendarIcon className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-              <p>Select a date with activities to view details</p>
-            </div>
-          )}
-          
-          {selectedDate && selectedDateActivities.length === 0 && (
             <div className="text-center py-4 text-gray-500">
-              <p>No activities for this date</p>
+              <p>No activities found for this period</p>
             </div>
           )}
         </div>
