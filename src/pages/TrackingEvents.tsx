@@ -1,14 +1,16 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from "sonner";
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Calendar as CalendarIcon } from 'lucide-react';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import DeleteConfirmationDialog from '@/components/tracking/DeleteConfirmationDialog';
 import ActivitiesTable from '@/components/tracking/ActivitiesTable';
 import EmptyActivities from '@/components/tracking/EmptyActivities';
 import PerformanceMetrics from '@/components/tracking/PerformanceMetrics';
+import CalendarView from '@/components/tracking/CalendarView';
 import { useActivities } from '@/hooks/useActivities';
 import { EventStatus } from '@/types/event';
 
@@ -19,6 +21,7 @@ const TrackingEvents = () => {
   const [deleting, setDeleting] = useState(false);
   const [userId, setUserId] = useState<string>();
   const [updatingStatus, setUpdatingStatus] = useState<{ [key: string]: boolean }>({});
+  const [showCalendarView, setShowCalendarView] = useState(false);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -90,6 +93,10 @@ const TrackingEvents = () => {
     }
   };
 
+  const toggleCalendarView = () => {
+    setShowCalendarView(!showCalendarView);
+  };
+
   if (loading || initializingStatuses) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -109,16 +116,28 @@ const TrackingEvents = () => {
         <div className="bg-white shadow rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold">Activity Tracking</h1>
-            {activities.length > 0 && (
+            <div className="flex space-x-2">
               <Button
-                variant="destructive"
-                onClick={() => setShowDeleteConfirmation(true)}
+                variant="outline"
+                onClick={toggleCalendarView}
                 className="flex items-center gap-2"
+                disabled={activities.length === 0}
               >
-                <Trash2 className="h-4 w-4" />
-                Remove table
+                <CalendarIcon className="h-4 w-4" />
+                {showCalendarView ? 'Table View' : 'Calendar View'}
               </Button>
-            )}
+              
+              {activities.length > 0 && (
+                <Button
+                  variant="destructive"
+                  onClick={() => setShowDeleteConfirmation(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Remove table
+                </Button>
+              )}
+            </div>
           </div>
 
           {activities.length > 0 && (
@@ -127,6 +146,11 @@ const TrackingEvents = () => {
 
           {activities.length === 0 ? (
             <EmptyActivities />
+          ) : showCalendarView ? (
+            <CalendarView 
+              activities={activities} 
+              onClose={() => setShowCalendarView(false)}
+            />
           ) : (
             <ActivitiesTable 
               activities={activities}
