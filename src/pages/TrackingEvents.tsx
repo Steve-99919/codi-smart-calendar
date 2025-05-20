@@ -124,7 +124,7 @@ const TrackingEvents = () => {
                 disabled={activities.length === 0}
               >
                 <CalendarIcon className="h-4 w-4" />
-                {showCalendarView ? 'Calendar View' : 'Calendar View'}
+                {showCalendarView ? 'Table View' : 'Calendar View'}
               </Button>
               
               {activities.length > 0 && (

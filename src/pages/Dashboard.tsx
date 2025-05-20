@@ -8,7 +8,6 @@ import CSVUpload from '@/components/CSVUpload';
 import CSVTable from '@/components/CSVTable';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import DashboardActions from '@/components/dashboard/DashboardActions';
-import SubscriptionDialog from '@/components/dashboard/SubscriptionDialog';
 import { useCSVPersistence } from '@/hooks/useCSVPersistence';
 import { checkExistingActivities, saveActivitiesToDatabase, exportCSVFile } from '@/services/activityService';
 import { addActivity } from '@/services/activityDataService';
@@ -19,7 +18,6 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [showTrackingSubscriptionDialog, setShowTrackingSubscriptionDialog] = useState(false);
   const [savingToDatabase, setSavingToDatabase] = useState(false);
   const [csvHistory, setCsvHistory] = useState<CSVRow[][]>([]);
   
@@ -105,7 +103,7 @@ const Dashboard = () => {
         return;
       }
 
-      setShowTrackingSubscriptionDialog(true);
+      saveToDatabase();
     } catch (error) {
       console.error('Error checking activities:', error);
       toast.error('Failed to check tracking status');
@@ -119,12 +117,6 @@ const Dashboard = () => {
     const updatedData = addActivity(csvData, newActivity);
     setCsvData(updatedData);
     toast.success(`Successfully added activity: ${newActivity.activityName}`);
-  };
-  
-  const handleSubscribe = () => {
-    toast.success('Subscription process would start here. For now, we\'ll simulate success');
-    setShowTrackingSubscriptionDialog(false);
-    saveToDatabase();
   };
 
   const saveToDatabase = async () => {
@@ -211,12 +203,6 @@ const Dashboard = () => {
           )}
         </div>
       </main>
-
-      <SubscriptionDialog
-        open={showTrackingSubscriptionDialog}
-        onOpenChange={setShowTrackingSubscriptionDialog}
-        onSubscribe={handleSubscribe}
-      />
     </div>
   );
 };

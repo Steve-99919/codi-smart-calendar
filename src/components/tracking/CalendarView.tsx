@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { format, startOfWeek, endOfWeek, isWithinInterval, isSameDay } from 'date-fns';
@@ -11,7 +12,7 @@ interface CalendarViewProps {
 }
 
 const CalendarView = ({ activities, onClose }: CalendarViewProps) => {
-  const [viewMode, setViewMode] = useState<'today' | 'week'>('today');
+  const [viewMode, setViewMode] = useState<'today' | 'week' | 'custom'>('today');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [displayedActivities, setDisplayedActivities] = useState<ActivityWithStatus[]>([]);
   
@@ -127,7 +128,7 @@ const CalendarView = ({ activities, onClose }: CalendarViewProps) => {
             onSelect={(date) => {
               if (date) {
                 setSelectedDate(date);
-                setViewMode('custom'); // Switch to custom view mode when a date is selected
+                setViewMode('custom'); // Now 'custom' is included in the type
               }
             }}
           />
