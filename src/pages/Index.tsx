@@ -13,18 +13,28 @@ const Index = () => {
       try {
         const { data } = await supabase.auth.getSession();
         
-        // Check both hash and search params for recovery type
-        const isRecoveryFlow = 
-          (location.hash && location.hash.includes('type=recovery')) || 
-          (location.search && location.search.includes('type=recovery'));
+        // According to Supabase docs, password reset links create a special session
+        // We need to check for this type of session and redirect accordingly
         
-        // If we're in a recovery flow and authenticated, redirect to reset password
-        // This takes precedence over normal authentication flow
-        if (isRecoveryFlow && data.session) {
+        // Add a more comprehensive check for recovery flow
+        const isPasswordResetFlow = 
+          // Check the URL for any form of reset parameters
+          location.href?.includes('reset') || 
+          location.href?.includes('recovery') || 
+          location.href?.includes('type=') ||
+          // Check the current path if we're already at the reset page
+          location.pathname === '/reset-password' ||
+          // Check if this is a recovery audience in the session
+          data.session?.user?.aud === 'recovery';
+        
+        if (isPasswordResetFlow && data.session) {
+          // This is a password reset session, go to reset password
           setRedirectTo("/reset-password");
         } else if (data.session) {
+          // Normal session, go to dashboard
           setRedirectTo("/dashboard");
         } else {
+          // No session, go to login
           setRedirectTo("/login");
         }
       } catch (error) {

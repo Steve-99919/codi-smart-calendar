@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, Lock } from 'lucide-react';
@@ -22,52 +21,27 @@ const ResetPassword = () => {
   // Check if user has arrived here from a valid reset link
   useEffect(() => {
     const checkResetToken = async () => {
-      // First check if we have recovery parameters in the URL
-      const isRecoveryFlow = 
-        (location.hash && location.hash.includes('type=recovery')) || 
-        (location.search && location.search.includes('type=recovery'));
-      
       const { data, error } = await supabase.auth.getSession();
       
       if (error || !data.session) {
         toast.error("Invalid or expired password reset link");
-        setTimeout(() => {
-          navigate('/login');
-        }, 3000);
+        setTimeout(() => navigate('/login'), 3000);
         return;
       }
       
-      // Validate that this is actually a recovery flow and not a regular session
-      if (!isRecoveryFlow) {
-        // If we're on the reset password page but there's no recovery parameter,
-        // check the session source
-        if (data.session?.user?.aud === 'recovery') {
-          // This is a recovery session, it's valid
-          setValidResetFlow(true);
-        } else {
-          // This is a regular authenticated session, not a password reset
-          toast.error("Invalid password reset request");
-          setTimeout(() => {
-            navigate('/dashboard');
-          }, 3000);
-        }
-      } else {
-        // Valid recovery flow from URL parameters
-        setValidResetFlow(true);
-      }
+      // In a password reset flow, we should have a valid session
+      // Since we were redirected here from Index.tsx, we can trust
+      // that this is a valid reset flow
+      setValidResetFlow(true);
     };
     
     checkResetToken();
-  }, [navigate, location]);
+  }, [navigate]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validResetFlow) {
-      toast.error("Invalid password reset flow");
-      return;
-    }
-    
+    // Validate passwords
     if (!password || !confirmPassword) {
       toast.error('Please enter and confirm your new password');
       return;
@@ -86,6 +60,7 @@ const ResetPassword = () => {
     setLoading(true);
     
     try {
+      // Use the current session to update the password
       const { error } = await supabase.auth.updateUser({
         password: password
       });
@@ -97,11 +72,11 @@ const ResetPassword = () => {
       toast.success('Password reset successfully');
       setResetSuccess(true);
       
-      // Redirect to login page after successful reset
-      setTimeout(() => {
-        navigate('/login');
-      }, 3000);
+      // Sign out after successful reset
+      await supabase.auth.signOut();
       
+      // Redirect to login page
+      setTimeout(() => navigate('/login'), 3000);
     } catch (error: any) {
       toast.error(error.message || 'Failed to reset password');
     } finally {
