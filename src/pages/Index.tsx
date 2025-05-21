@@ -13,9 +13,14 @@ const Index = () => {
       try {
         const { data } = await supabase.auth.getSession();
         
-        // If we're coming from a password reset link and we're authenticated,
-        // redirect to the reset password page instead of the dashboard
-        if (location.hash && location.hash.includes('type=recovery') && data.session) {
+        // Check both hash and search params for recovery type
+        const isRecoveryFlow = 
+          (location.hash && location.hash.includes('type=recovery')) || 
+          (location.search && location.search.includes('type=recovery'));
+        
+        // If we're in a recovery flow and authenticated, redirect to reset password
+        // This takes precedence over normal authentication flow
+        if (isRecoveryFlow && data.session) {
           setRedirectTo("/reset-password");
         } else if (data.session) {
           setRedirectTo("/dashboard");

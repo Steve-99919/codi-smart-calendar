@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,25 +15,58 @@ const ResetPassword = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
+  const [validResetFlow, setValidResetFlow] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   
   // Check if user has arrived here from a valid reset link
   useEffect(() => {
     const checkResetToken = async () => {
+      // First check if we have recovery parameters in the URL
+      const isRecoveryFlow = 
+        (location.hash && location.hash.includes('type=recovery')) || 
+        (location.search && location.search.includes('type=recovery'));
+      
       const { data, error } = await supabase.auth.getSession();
+      
       if (error || !data.session) {
         toast.error("Invalid or expired password reset link");
         setTimeout(() => {
           navigate('/login');
         }, 3000);
+        return;
+      }
+      
+      // Validate that this is actually a recovery flow and not a regular session
+      if (!isRecoveryFlow) {
+        // If we're on the reset password page but there's no recovery parameter,
+        // check the session source
+        if (data.session?.user?.aud === 'recovery') {
+          // This is a recovery session, it's valid
+          setValidResetFlow(true);
+        } else {
+          // This is a regular authenticated session, not a password reset
+          toast.error("Invalid password reset request");
+          setTimeout(() => {
+            navigate('/dashboard');
+          }, 3000);
+        }
+      } else {
+        // Valid recovery flow from URL parameters
+        setValidResetFlow(true);
       }
     };
     
     checkResetToken();
-  }, [navigate]);
+  }, [navigate, location]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validResetFlow) {
+      toast.error("Invalid password reset flow");
+      return;
+    }
     
     if (!password || !confirmPassword) {
       toast.error('Please enter and confirm your new password');
@@ -81,7 +114,11 @@ const ResetPassword = () => {
       title="Create New Password" 
       subtitle="Enter your new password below"
     >
-      {resetSuccess ? (
+      {!validResetFlow && !resetSuccess ? (
+        <div className="bg-yellow-50 text-yellow-700 p-4 rounded-md">
+          <p className="font-medium">Verifying password reset request...</p>
+        </div>
+      ) : resetSuccess ? (
         <div className="bg-green-50 text-green-700 p-4 rounded-md">
           <p className="font-medium">Password reset successful!</p>
           <p className="mt-2">Your password has been changed. You will be redirected to login.</p>
