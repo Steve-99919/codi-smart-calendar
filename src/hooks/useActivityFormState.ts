@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { CSVRow } from '@/types/csv';
 import { format, subDays } from "date-fns";
@@ -32,6 +31,20 @@ export const useActivityFormState = ({
     isWeekend: false,
     isHoliday: false
   });
+
+  // Function to find the previous business day
+  const getPreviousBusinessDay = (date: Date): Date => {
+    let adjustedDate = new Date(date);
+    let dateStr = format(adjustedDate, 'dd/MM/yyyy');
+    
+    // Keep moving back until we find a valid business day
+    while ((!allowWeekends && isWeekend(dateStr)) || (!allowHolidays && isPublicHoliday(dateStr))) {
+      adjustedDate.setDate(adjustedDate.getDate() - 1);
+      dateStr = format(adjustedDate, 'dd/MM/yyyy');
+    }
+    
+    return adjustedDate;
+  };
 
   const handlePrepDateSelect = (date: Date | undefined) => {
     setSelectedPrepDate(date);
@@ -79,33 +92,24 @@ export const useActivityFormState = ({
       }
       
       // Calculate prep date (3 days before go date)
-      const prepDate = subDays(date, 3);
-      const prepDateFormatted = format(prepDate, 'dd/MM/yyyy');
-      const isPrepOnWeekend = isWeekend(prepDateFormatted);
-      const isPrepOnHoliday = isPublicHoliday(prepDateFormatted);
+      const initialPrepDate = subDays(date, 3);
       
-      // If prep date would fall on a weekend/holiday, adjust it based on preferences
-      if ((isPrepOnWeekend && !allowWeekends) || (isPrepOnHoliday && !allowHolidays)) {
-        // Get a valid prep date that respects the preferences
-        const validPrepDate = getValidPrepDate(prepDate, allowWeekends, allowHolidays);
-        const validPrepDateFormatted = format(validPrepDate, 'dd/MM/yyyy');
-        
-        setSelectedPrepDate(validPrepDate);
-        setNewActivity(prev => ({
-          ...prev,
-          goDate: formattedDate,
-          prepDate: validPrepDateFormatted
-        }));
-        
-        toast.info("Prep date has been automatically adjusted to avoid weekend/holiday based on your preferences");
-      } else {
-        setSelectedPrepDate(prepDate);
-        setNewActivity(prev => ({
-          ...prev,
-          goDate: formattedDate,
-          prepDate: prepDateFormatted
-        }));
+      // Check if the initial prep date falls on weekend/holiday and adjust if needed
+      const adjustedPrepDate = getPreviousBusinessDay(initialPrepDate);
+      const prepDateFormatted = format(adjustedPrepDate, 'dd/MM/yyyy');
+      
+      // If we had to adjust the date, show an info message
+      const originalPrepDateFormatted = format(initialPrepDate, 'dd/MM/yyyy');
+      if (originalPrepDateFormatted !== prepDateFormatted) {
+        toast.info(`Prep date automatically adjusted from ${originalPrepDateFormatted} to ${prepDateFormatted} to avoid weekend/holiday`);
       }
+      
+      setSelectedPrepDate(adjustedPrepDate);
+      setNewActivity(prev => ({
+        ...prev,
+        goDate: formattedDate,
+        prepDate: prepDateFormatted
+      }));
     }
   };
 

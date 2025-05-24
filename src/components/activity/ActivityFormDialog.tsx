@@ -130,10 +130,7 @@ export const ActivityFormDialog = ({
                 <CalendarIcon className="h-4 w-4 text-muted-foreground" />
               </div>
               <p className="text-xs text-muted-foreground">
-                Prep date is automatically set 3 days before the Go date.
-                {!newActivity.prepDate && selectedGoDate ? (
-                  <span className="text-orange-500"> Warning: Selected Go date would result in a weekend or holiday prep date.</span>
-                ) : ""}
+                Prep date is automatically set 3 days before the Go date and adjusted to avoid weekends/holidays based on your preferences.
               </p>
             </div>
             
