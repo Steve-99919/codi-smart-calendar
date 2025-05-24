@@ -49,43 +49,55 @@ export const useActivityDateHandling = ({
   const handleGoDateSelect = (date: Date | undefined) => {
     setSelectedGoDate(date);
     if (date) {
-      const formattedDate = format(date, 'dd/MM/yyyy');
-      const isDateOnWeekend = isWeekend(formattedDate);
-      const isDateOnHoliday = isPublicHoliday(formattedDate);
+      const formattedGoDate = format(date, 'dd/MM/yyyy');
       
-      if (isDateOnWeekend && !allowWeekends) {
-        toast.error("You have selected a weekend date. Please enable weekend dates in preferences or select another date.");
+      // Validate go date itself
+      const isGoDateOnWeekend = isWeekend(formattedGoDate);
+      const isGoDateOnHoliday = isPublicHoliday(formattedGoDate);
+      
+      if (isGoDateOnWeekend && !allowWeekends) {
+        toast.error("You have selected a weekend date for go date. Please enable weekend dates in preferences or select another date.");
         setSelectedGoDate(undefined);
         return;
       }
       
-      if (isDateOnHoliday && !allowHolidays) {
-        toast.error("You have selected a public holiday. Please enable holiday dates in preferences or select another date.");
+      if (isGoDateOnHoliday && !allowHolidays) {
+        toast.error("You have selected a public holiday for go date. Please enable holiday dates in preferences or select another date.");
         setSelectedGoDate(undefined);
         return;
       }
       
-      // Calculate prep date (3 days before go date)
+      // Calculate initial prep date (3 days before go date)
       const initialPrepDate = subDays(date, 3);
+      const initialPrepDateFormatted = format(initialPrepDate, 'dd/MM/yyyy');
       
-      // Always adjust prep date if user preferences don't allow weekends/holidays
-      const adjustedPrepDate = (!allowWeekends || !allowHolidays) 
-        ? getPreviousBusinessDay(initialPrepDate, allowWeekends, allowHolidays)
-        : initialPrepDate;
+      // Check if the initial prep date needs adjustment
+      const isPrepDateOnWeekend = isWeekend(initialPrepDateFormatted);
+      const isPrepDateOnHoliday = isPublicHoliday(initialPrepDateFormatted);
       
-      const prepDateFormatted = format(adjustedPrepDate, 'dd/MM/yyyy');
+      let finalPrepDate = initialPrepDate;
+      let needsAdjustment = false;
       
-      // If we had to adjust the date, show an info message
-      const originalPrepDateFormatted = format(initialPrepDate, 'dd/MM/yyyy');
-      if (originalPrepDateFormatted !== prepDateFormatted) {
-        toast.info(`Prep date automatically adjusted from ${originalPrepDateFormatted} to ${prepDateFormatted} to avoid weekend/holiday`);
+      // If prep date falls on weekend/holiday and user doesn't allow them, adjust it
+      if ((isPrepDateOnWeekend && !allowWeekends) || (isPrepDateOnHoliday && !allowHolidays)) {
+        needsAdjustment = true;
+        finalPrepDate = getPreviousBusinessDay(initialPrepDate, allowWeekends, allowHolidays);
       }
       
-      setSelectedPrepDate(adjustedPrepDate);
+      const finalPrepDateFormatted = format(finalPrepDate, 'dd/MM/yyyy');
+      
+      // Show info message if we had to adjust the prep date
+      if (needsAdjustment) {
+        const reasonMessage = isPrepDateOnWeekend && !allowWeekends ? 'weekend' : 'holiday';
+        toast.info(`Prep date automatically adjusted from ${initialPrepDateFormatted} to ${finalPrepDateFormatted} to avoid ${reasonMessage}`);
+      }
+      
+      // Update the state with both dates
+      setSelectedPrepDate(finalPrepDate);
       setNewActivity(prev => ({
         ...prev,
-        goDate: formattedDate,
-        prepDate: prepDateFormatted
+        goDate: formattedGoDate,
+        prepDate: finalPrepDateFormatted
       }));
     }
   };
