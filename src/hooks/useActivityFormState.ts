@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { CSVRow } from '@/types/csv';
 import { format, subDays } from "date-fns";
@@ -94,8 +95,11 @@ export const useActivityFormState = ({
       // Calculate prep date (3 days before go date)
       const initialPrepDate = subDays(date, 3);
       
-      // Check if the initial prep date falls on weekend/holiday and adjust if needed
-      const adjustedPrepDate = getPreviousBusinessDay(initialPrepDate);
+      // Always adjust prep date if user preferences don't allow weekends/holidays
+      const adjustedPrepDate = (!allowWeekends || !allowHolidays) 
+        ? getPreviousBusinessDay(initialPrepDate)
+        : initialPrepDate;
+      
       const prepDateFormatted = format(adjustedPrepDate, 'dd/MM/yyyy');
       
       // If we had to adjust the date, show an info message
@@ -138,22 +142,21 @@ export const useActivityFormState = ({
       return false;
     }
 
-    // Validate weekend and holiday restrictions
-    const isPrepWeekend = isWeekend(newActivity.prepDate);
+    // Only validate go date restrictions - prep date is automatically adjusted
     const isGoWeekend = isWeekend(newActivity.goDate);
-    const isPrepHoliday = isPublicHoliday(newActivity.prepDate);
     const isGoHoliday = isPublicHoliday(newActivity.goDate);
 
-    if ((isPrepWeekend || isGoWeekend) && !allowWeekends) {
-      toast.error("One or more selected dates fall on a weekend. Please enable weekend dates in preferences or select different dates.");
+    if (isGoWeekend && !allowWeekends) {
+      toast.error("Go date falls on a weekend. Please enable weekend dates in preferences or select a different date.");
       return false;
     }
 
-    if ((isPrepHoliday || isGoHoliday) && !allowHolidays) {
-      toast.error("One or more selected dates fall on a public holiday. Please enable holiday dates in preferences or select different dates.");
+    if (isGoHoliday && !allowHolidays) {
+      toast.error("Go date falls on a public holiday. Please enable holiday dates in preferences or select a different date.");
       return false;
     }
 
+    // Note: We don't validate prep date restrictions here because it's automatically adjusted
     return true;
   };
 
