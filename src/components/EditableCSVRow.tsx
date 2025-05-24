@@ -5,7 +5,7 @@ import { CSVRow } from "../types/csv";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Check, X, Calendar as CalendarIcon } from "lucide-react";
+import { Check, X, Calendar as CalendarIcon, Settings } from "lucide-react";
 import { 
   Popover,
   PopoverContent,
@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { 
   isValidDateFormat, 
   isWeekend, 
@@ -29,6 +30,7 @@ import {
   isDateBefore,
   getValidPrepDate
 } from '@/utils/dateUtils';
+import { getPreviousBusinessDay } from '@/utils/businessDayUtils';
 import { cn } from '@/lib/utils';
 import { toast } from "sonner";
 import { ConflictAlertDialog } from './activity/ConflictAlertDialog';
@@ -49,11 +51,14 @@ const EditableCSVRow = ({ row, index, onSave, onCancel, data }: EditableCSVRowPr
   });
   const [showDatePreferenceDialog, setShowDatePreferenceDialog] = useState<boolean>(false);
   const [showPrepDatePreferenceDialog, setShowPrepDatePreferenceDialog] = useState<boolean>(false);
+  const [showEditPreferenceDialog, setShowEditPreferenceDialog] = useState<boolean>(false);
   const [selectedGoDate, setSelectedGoDate] = useState<Date | null>(null);
   const [calculatedPrepDate, setCalculatedPrepDate] = useState<Date | null>(null);
   const [dialogSource, setDialogSource] = useState<'go' | 'prep'>('go');
   const [showConflictDialog, setShowConflictDialog] = useState<boolean>(false);
   const [conflictMessage, setConflictMessage] = useState<string>('');
+  const [allowWeekends, setAllowWeekends] = useState(false);
+  const [allowHolidays, setAllowHolidays] = useState(false);
 
   const handleInputChange = (field: keyof CSVRow, value: string) => {
     setEditedRow(prev => ({ ...prev, [field]: value }));
@@ -77,6 +82,17 @@ const EditableCSVRow = ({ row, index, onSave, onCancel, data }: EditableCSVRowPr
   const formatDateString = (date: Date): string => {
     return format(date, 'dd/MM/yyyy');
   };
+
+  // Handle opening preferences for editing
+  const handleOpenEditPreferences = () => {
+    setShowEditPreferenceDialog(true);
+  };
+
+  // Handle proceeding from edit preferences
+  const handleProceedFromEditPreferences = () => {
+    setShowEditPreferenceDialog(false);
+    // Continue with normal editing flow
+  };
   
   // Handle go date selection from calendar
   const handleGoDateSelect = (date: Date | undefined) => {
@@ -87,55 +103,47 @@ const EditableCSVRow = ({ row, index, onSave, onCancel, data }: EditableCSVRowPr
     const isDateOnWeekend = isWeekend(formattedDate);
     const isDateOnHoliday = isPublicHoliday(formattedDate);
     
-    // If it's a weekend or holiday, show the preference dialog
-    if (isDateOnWeekend || isDateOnHoliday) {
-      setSelectedGoDate(date);
-      setDialogSource('go');
-      setShowDatePreferenceDialog(true);
+    // Validate go date itself
+    if (isDateOnWeekend && !allowWeekends) {
+      toast.error("You have selected a weekend date for go date. Please enable weekend dates in preferences or select a different date.");
       return;
     }
     
-    // If it's not a weekend or holiday, just update the date
-    applyGoDateSelection(date);
-  };
-  
-  // Apply the go date selection and calculate prep date
-  const applyGoDateSelection = (goDate: Date) => {
-    // Set the go date
-    const formattedGoDate = formatDateString(goDate);
-    
-    // Calculate prep date (3 days before go date)
-    const prepDate = subDays(goDate, 3);
-    
-    // Check if prep date is on a weekend or holiday
-    const formattedPrepDate = formatDateString(prepDate);
-    const isPrepOnWeekend = isWeekend(formattedPrepDate);
-    const isPrepOnHoliday = isPublicHoliday(formattedPrepDate);
-    
-    // If prep date falls on weekend/holiday, show the prep date preference dialog
-    if (isPrepOnWeekend || isPrepOnHoliday) {
-      setCalculatedPrepDate(prepDate);
-      setDialogSource('prep');
-      setShowPrepDatePreferenceDialog(true);
-      
-      // Update Go date immediately
-      setEditedRow(prev => ({
-        ...prev,
-        goDate: formattedGoDate
-      }));
-      
-      setDateErrors(prev => ({
-        ...prev,
-        goDate: false
-      }));
+    if (isDateOnHoliday && !allowHolidays) {
+      toast.error("You have selected a public holiday for go date. Please enable holiday dates in preferences or select a different date.");
       return;
     }
     
-    // If prep date is fine, update both dates
+    // Calculate initial prep date (3 days before go date)
+    const initialPrepDate = subDays(date, 3);
+    const initialPrepDateFormatted = formatDateString(initialPrepDate);
+    
+    // Check if the initial prep date needs adjustment
+    const isPrepDateOnWeekend = isWeekend(initialPrepDateFormatted);
+    const isPrepDateOnHoliday = isPublicHoliday(initialPrepDateFormatted);
+    
+    let finalPrepDate = initialPrepDate;
+    let needsAdjustment = false;
+    
+    // If prep date falls on weekend/holiday and user doesn't allow them, adjust it
+    if ((isPrepDateOnWeekend && !allowWeekends) || (isPrepDateOnHoliday && !allowHolidays)) {
+      needsAdjustment = true;
+      finalPrepDate = getPreviousBusinessDay(initialPrepDate, allowWeekends, allowHolidays);
+    }
+    
+    const finalPrepDateFormatted = formatDateString(finalPrepDate);
+    
+    // Show info message if we had to adjust the prep date
+    if (needsAdjustment) {
+      const reasonMessage = isPrepDateOnWeekend && !allowWeekends ? 'weekend' : 'holiday';
+      toast.info(`Prep date automatically adjusted from ${initialPrepDateFormatted} to ${finalPrepDateFormatted} to avoid ${reasonMessage}`);
+    }
+    
+    // Update both dates
     setEditedRow(prev => ({
       ...prev,
-      goDate: formattedGoDate,
-      prepDate: formattedPrepDate
+      goDate: formattedDate,
+      prepDate: finalPrepDateFormatted
     }));
     
     setDateErrors(prev => ({
@@ -166,7 +174,7 @@ const EditableCSVRow = ({ row, index, onSave, onCancel, data }: EditableCSVRowPr
   const handleConfirmDatePreferences = () => {
     if (dialogSource === 'go' && selectedGoDate) {
       setShowDatePreferenceDialog(false);
-      applyGoDateSelection(selectedGoDate);
+      handleGoDateSelect(selectedGoDate);
       setSelectedGoDate(null);
     } else if (dialogSource === 'prep') {
       setShowPrepDatePreferenceDialog(false);
@@ -346,29 +354,40 @@ const EditableCSVRow = ({ row, index, onSave, onCancel, data }: EditableCSVRowPr
         </td>
         <td className="p-2">
           <div className="flex flex-col">
-            <Popover>
-              <PopoverTrigger asChild>
-                <div className={cn(
-                  "flex items-center space-x-2 h-8 px-3 py-2 rounded-md border",
-                  dateErrors.goDate ? 'border-red-500' : 
-                  goDateIssue.hasIssue ? 'bg-red-100' : '',
-                  hasGoConflict ? 'border-2 border-red-500' : '',
-                  hasDateSequenceIssue ? 'border-2 border-amber-500' : '',
-                  "cursor-pointer"
-                )}>
-                  <span className="text-sm">{editedRow.goDate || "Select GO date"}</span>
-                  <CalendarIcon className="h-4 w-4" />
-                </div>
-              </PopoverTrigger>
-              <PopoverContent className="p-0 w-auto" align="start">
-                <Calendar
-                  mode="single"
-                  selected={parseDate(editedRow.goDate)}
-                  onSelect={handleGoDateSelect}
-                  className="rounded-md border pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
+            <div className="flex items-center space-x-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <div className={cn(
+                    "flex items-center space-x-2 h-8 px-3 py-2 rounded-md border flex-1",
+                    dateErrors.goDate ? 'border-red-500' : 
+                    goDateIssue.hasIssue ? 'bg-red-100' : '',
+                    hasGoConflict ? 'border-2 border-red-500' : '',
+                    hasDateSequenceIssue ? 'border-2 border-amber-500' : '',
+                    "cursor-pointer"
+                  )}>
+                    <span className="text-sm">{editedRow.goDate || "Select GO date"}</span>
+                    <CalendarIcon className="h-4 w-4" />
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-auto" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={parseDate(editedRow.goDate)}
+                    onSelect={handleGoDateSelect}
+                    className="rounded-md border pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleOpenEditPreferences}
+                className="h-8 w-8 p-0"
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            </div>
             
             {goDateIssue.hasIssue && !dateErrors.goDate && (
               <span className="text-xs text-red-500 mt-1">
@@ -391,6 +410,49 @@ const EditableCSVRow = ({ row, index, onSave, onCancel, data }: EditableCSVRowPr
           </Button>
         </td>
       </tr>
+
+      {/* Edit Preferences Dialog */}
+      <Dialog open={showEditPreferenceDialog} onOpenChange={setShowEditPreferenceDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Activity Scheduling Preferences</DialogTitle>
+            <DialogDescription>
+              Please set your preferences for editing this activity.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="allowWeekends"
+                checked={allowWeekends}
+                onChange={(e) => setAllowWeekends(e.target.checked)}
+                className="h-4 w-4"
+              />
+              <Label htmlFor="allowWeekends">Allow posting on weekends for this activity</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="allowHolidays"
+                checked={allowHolidays}
+                onChange={(e) => setAllowHolidays(e.target.checked)}
+                className="h-4 w-4"
+              />
+              <Label htmlFor="allowHolidays">Allow posting on public holidays for this activity</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowEditPreferenceDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleProceedFromEditPreferences}>Continue</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Go Date Preference Dialog - Simplified without checkboxes */}
       <Dialog open={showDatePreferenceDialog} onOpenChange={setShowDatePreferenceDialog}>
