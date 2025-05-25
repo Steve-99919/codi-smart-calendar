@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,31 +15,47 @@ const ResetPassword = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [isReady, setIsReady] = useState(false);
+  const [verifying, setVerifying] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    // Listen for auth state changes to detect password recovery
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === 'PASSWORD_RECOVERY') {
-          setIsReady(true);
-        } else if (event === 'SIGNED_IN' && session) {
-          // User successfully reset password
-          setIsReady(true);
+    const verifyToken = async () => {
+      const tokenHash = searchParams.get('token_hash');
+      const type = searchParams.get('type');
+
+      if (!tokenHash || type !== 'recovery') {
+        setError('Invalid or missing reset token. Please request a new password reset.');
+        setVerifying(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: 'recovery'
+        });
+
+        if (error) {
+          throw error;
         }
-      }
-    );
 
-    // Check if we're already in a password recovery session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setIsReady(true);
+        if (data.user) {
+          setIsAuthenticated(true);
+          toast.success('Email verified! You can now set your new password.');
+        }
+      } catch (error: any) {
+        console.error('Token verification error:', error);
+        setError(error.message || 'Failed to verify reset token. Please request a new password reset.');
+      } finally {
+        setVerifying(false);
       }
-    });
+    };
 
-    return () => subscription.unsubscribe();
-  }, []);
+    verifyToken();
+  }, [searchParams]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,11 +95,45 @@ const ResetPassword = () => {
     }
   };
 
-  if (!isReady) {
+  if (verifying) {
     return (
       <AuthLayout title="Reset Your Password">
         <div className="text-center py-8">
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">Verifying reset token...</p>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AuthLayout title="Reset Your Password">
+        <div className="text-center py-8">
+          <p className="text-red-600 mb-4">{error}</p>
+          <Button
+            onClick={() => navigate('/forgot-password')}
+            variant="outline"
+            className="text-codi-purple border-codi-purple hover:bg-codi-purple hover:text-white"
+          >
+            Request New Reset Link
+          </Button>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <AuthLayout title="Reset Your Password">
+        <div className="text-center py-8">
+          <p className="text-red-600 mb-4">You are not authenticated to reset your password.</p>
+          <Button
+            onClick={() => navigate('/forgot-password')}
+            variant="outline"
+            className="text-codi-purple border-codi-purple hover:bg-codi-purple hover:text-white"
+          >
+            Request New Reset Link
+          </Button>
         </div>
       </AuthLayout>
     );
