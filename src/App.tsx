@@ -6,7 +6,6 @@ import StatusConfirm from './pages/StatusConfirm';
 import Index from './pages/Index';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import ResetPassword from './pages/ResetPassword';
 import NotFound from './pages/NotFound';
 import "./App.css";
 import { Toaster } from "./components/ui/sonner";
@@ -19,7 +18,6 @@ function App() {
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/tracking-events" element={<TrackingEvents />} />
           <Route path="/status-confirm" element={<StatusConfirm />} />
