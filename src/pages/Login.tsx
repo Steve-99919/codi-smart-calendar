@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from "sonner";
 import AuthLayout from '@/components/AuthLayout';
+import ForgotPasswordModal from '@/components/ForgotPasswordModal';
 import { supabase } from '@/integrations/supabase/client';
 
 const Login = () => {
@@ -14,6 +15,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -91,6 +93,16 @@ const Login = () => {
             </div>
           </div>
           
+          <div className="text-right">
+            <button
+              type="button"
+              onClick={() => setForgotPasswordOpen(true)}
+              className="text-sm text-codi-purple hover:underline"
+            >
+              Forgot Password?
+            </button>
+          </div>
+          
           <Button
             type="submit"
             className="w-full bg-codi-purple hover:bg-codi-purple-dark"
@@ -109,6 +121,11 @@ const Login = () => {
           </div>
         </div>
       </form>
+
+      <ForgotPasswordModal 
+        open={forgotPasswordOpen} 
+        onOpenChange={setForgotPasswordOpen} 
+      />
     </AuthLayout>
   );
 };
